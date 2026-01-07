@@ -1,0 +1,19 @@
+[Unit]
+Description=ai-guardd Security Agent
+After=network.target syslog.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/ai-guardd run --config /etc/ai-guardd/config.yml
+Restart=always
+# Hardening
+# ProtectSystem=strict # Read-only /usr, /boot, /etc
+# ReadWritePaths=/var/log/ai-guardd /etc/ai-guardd
+# CapabilityBoundingSet=CAP_NET_ADMIN CAP_DAC_READ_SEARCH
+# ProtectHome=yes
+# PrivateTmp=yes
+# NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

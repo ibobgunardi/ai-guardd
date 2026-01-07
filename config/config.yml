@@ -1,0 +1,21 @@
+input:
+  auth_log_path: "/var/log/auth.log"
+  syslog_path: "/var/log/syslog"
+  web_log_path: "/var/log/nginx/access.log"
+  enable_docker_logs: false
+  enable_journald: true
+
+detection:
+  enable_local_llm: false    # Keep false for CI/Simulation unless LLM container exists
+  active_defense: false      # Advisory mode only
+  allow_external_ai: false
+  allowlist:
+    - "127.0.0.1"            # Localhost
+    - "10.0.0.0/8"           # Private Network (Example)
+
+notification:
+  discord_webhook: "https://discord.com/api/webhooks/1458143002110333151/AjYQfKazqPim7tVoAcrD2ZaZajP2nOyI3rh-zt-RmJ_4bMzY6rHXbeJriyONaB7v5isz"        # URL here (e.g. https://discord.com/api/webhooks/...)
+
+output:
+  audit_log_path: "/var/log/audit.log" # Inside container
+  format: "json"

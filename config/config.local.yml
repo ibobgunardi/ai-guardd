@@ -1,0 +1,13 @@
+input:
+  auth_log_path: "./test_auth.log"
+  syslog_path: "./test_syslog.log"
+  enable_docker_logs: false
+  enable_journald: false
+
+detection:
+  enable_local_llm: false
+  allow_external_ai: false
+
+output:
+  audit_log_path: "./audit.log"
+  format: "json"

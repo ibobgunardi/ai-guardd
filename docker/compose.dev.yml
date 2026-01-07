@@ -1,0 +1,24 @@
+services:
+  # The Agent
+  ai-guardd:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: ai-guardd-dev
+    volumes:
+      - ../config/config.yml:/etc/ai-guardd/config.yml
+      # Mount simulated logs
+      - ./simulated_logs:/var/log_sim
+    environment:
+      - AI_GUARDD_ENV=dev
+    command: [ "run", "--config", "/etc/ai-guardd/config.yml" ]
+
+  # Log Simulator / Attacker
+  attacker:
+    image: alpine:latest
+    container_name: ai-guardd-attacker
+    volumes:
+      - ./simulated_logs:/var/log_sim
+      - ./simulate_attack.sh:/app/simulate_attack.sh
+    command: >
+      sh -c " apk add --no-cache bash && chmod +x /app/simulate_attack.sh && /app/simulate_attack.sh "
