@@ -7,6 +7,7 @@ import (
 	"ai-guardd/internal/detect"
 	"ai-guardd/internal/explain"
 	"ai-guardd/internal/ingest"
+	"ai-guardd/internal/metrics"
 	"ai-guardd/internal/parser"
 	"ai-guardd/internal/state"
 	"flag"
@@ -68,7 +69,7 @@ func runCommand(args []string) {
 
 	// Initialize Components
 	sshParser := parser.NewSSHParser()
-	detector := detect.NewEngine()
+	detector := detect.NewEngine(cfg.Detection.Rules)
 
 	// Initialize State Store
 	stateStore, err := state.NewStore("ai-guardd.db")
@@ -140,6 +141,14 @@ func runCommand(args []string) {
 	// Initialize Action Broker
 	broker := action.NewBroker(cfg.Detection.ActiveDefense, cfg.Detection.Allowlist, cfg.Notification.DiscordWebhook, cfg.Action.ExecutorSocket)
 
+	// Start Prometheus metrics server
+	go func() {
+		log.Println("[METRICS] Starting on :9090")
+		if err := metrics.StartServer(":9090"); err != nil {
+			log.Printf("[METRICS] Failed to start: %v", err)
+		}
+	}()
+
 	// Main Loop
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -205,6 +214,9 @@ func runCommand(args []string) {
 			}
 
 			if parsedEvt != nil {
+				// Increment events processed
+				metrics.EventsProcessed.Inc()
+
 				// Detect
 				alert := detector.ProcessEvent(parsedEvt)
 				if alert != nil {
@@ -212,6 +224,12 @@ func runCommand(args []string) {
 					err := explainer.Explain(alert)
 					if err != nil {
 						templateFallback.Explain(alert)
+					}
+
+					// Track metrics
+					metrics.AlertsGenerated.WithLabelValues(string(alert.Risk)).Inc()
+					if alert.SuggestedAction != nil && alert.SuggestedAction.Type == "ban_ip" {
+						metrics.IPsBanned.Inc()
 					}
 
 					// Act (NOW PASS POINTER TO EVENT)
@@ -250,6 +268,9 @@ func runCommand(args []string) {
 			}
 			// Update components dynamically
 			broker.UpdateConfig(newCfg.Detection.ActiveDefense, newCfg.Detection.Allowlist, newCfg.Notification.DiscordWebhook, newCfg.Action.ExecutorSocket)
+
+			// Track config reload
+			metrics.ConfigReloads.Inc()
 
 			// Save state on reload too
 			if stateStore != nil {

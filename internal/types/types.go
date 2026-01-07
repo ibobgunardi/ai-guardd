@@ -40,6 +40,18 @@ type SuggestedAction struct {
 	Duration string `json:"duration"` // e.g. "24h"
 }
 
+// DetectionRule defines a configurable detection rule
+type DetectionRule struct {
+	Name      string    `yaml:"name"`
+	Type      string    `yaml:"type"`      // "threshold"
+	Metric    string    `yaml:"metric"`    // "failed_logins", "http_404_count"
+	Threshold int       `yaml:"threshold"` // e.g. 5
+	Action    string    `yaml:"action"`    // "ban_ip"
+	Duration  string    `yaml:"duration"`  // "1h"
+	Risk      RiskLevel `yaml:"risk"`      // "high"
+	Summary   string    `yaml:"summary"`   // Alert message
+}
+
 // Config represents the application configuration
 type Config struct {
 	Input struct {
@@ -59,6 +71,9 @@ type Config struct {
 		// Phase 3
 		ActiveDefense bool     `yaml:"active_defense"` // DANGEROUS: Executes actions
 		Allowlist     []string `yaml:"allowlist"`      // Safe IPs that are never banned
+
+		// Phase 7: Configurable Rules
+		Rules []DetectionRule `yaml:"rules"`
 	} `yaml:"detection"`
 
 	Notification struct {

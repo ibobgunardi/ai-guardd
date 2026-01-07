@@ -12,6 +12,23 @@ detection:
   allowlist:
     - "127.0.0.1"            # Localhost
     - "10.0.0.0/8"           # Private Network (Example)
+  rules:
+    - name: "ssh_brute_force"
+      type: "threshold"
+      metric: "failed_logins"
+      threshold: 5
+      action: "ban_ip"
+      duration: "1h"
+      risk: "high"
+      summary: "SSH Brute Force Detected"
+    - name: "web_scanning"
+      type: "threshold"
+      metric: "http_404_count"
+      threshold: 20
+      action: "ban_ip"
+      duration: "30m"
+      risk: "medium"
+      summary: "Web Scanning Detected (404 Flood)"
 
 notification:
   discord_webhook: "https://discord.com/api/webhooks/1458143002110333151/AjYQfKazqPim7tVoAcrD2ZaZajP2nOyI3rh-zt-RmJ_4bMzY6rHXbeJriyONaB7v5isz"        # URL here (e.g. https://discord.com/api/webhooks/...)

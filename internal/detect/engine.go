@@ -11,59 +11,98 @@ import (
 // Engine is the core detection engine
 type Engine struct {
 	features *feature.Accumulator
+	rules    []types.DetectionRule
 }
 
-// NewEngine creates a new detection engine
-func NewEngine() *Engine {
+// NewEngine creates a new detection engine with configurable rules
+func NewEngine(rules []types.DetectionRule) *Engine {
+	// If no rules provided, use defaults
+	if len(rules) == 0 {
+		rules = getDefaultRules()
+	}
 	return &Engine{
 		features: feature.NewAccumulator(1 * time.Hour), // Keep history for 1 hour
+		rules:    rules,
+	}
+}
+
+// getDefaultRules returns the built-in detection rules
+func getDefaultRules() []types.DetectionRule {
+	return []types.DetectionRule{
+		{
+			Name:      "ssh_brute_force",
+			Type:      "threshold",
+			Metric:    "failed_logins",
+			Threshold: 5,
+			Action:    "ban_ip",
+			Duration:  "1h",
+			Risk:      types.RiskHigh,
+			Summary:   "SSH Brute Force Detected",
+		},
+		{
+			Name:      "web_scanning",
+			Type:      "threshold",
+			Metric:    "http_404_count",
+			Threshold: 20,
+			Action:    "ban_ip",
+			Duration:  "30m",
+			Risk:      types.RiskMedium,
+			Summary:   "Web Scanning Detected (404 Flood)",
+		},
 	}
 }
 
 func (e *Engine) checkThresholds(feat *feature.FeatureVector) *types.Event {
-	// Rule 1: High Velocity Brute Force
-	if feat.FailedLogins >= 5 {
-		return &types.Event{
-			ID:          fmt.Sprintf("evt_%d", time.Now().UnixNano()),
-			Timestamp:   time.Now(),
-			Source:      "ssh_auth",
-			Risk:        types.RiskHigh,
-			Confidence:  0.9,
-			Summary:     "SSH Brute Force Detected",
-			Explanation: fmt.Sprintf("IP %s attempted %d SSH logins using %d distinct usernames.", feat.IP, feat.FailedLogins, len(feat.DistinctUsers)),
-			Evidence: []types.Evidence{
+	// Evaluate all rules against the feature vector
+	for _, rule := range e.rules {
+		if rule.Type != "threshold" {
+			continue
+		}
+
+		var currentValue int
+		var evidence []types.Evidence
+
+		switch rule.Metric {
+		case "failed_logins":
+			currentValue = feat.FailedLogins
+			evidence = []types.Evidence{
 				{Type: "ssh_fail_count", Value: feat.FailedLogins},
 				{Type: "distinct_users", Value: len(feat.DistinctUsers)},
-			},
-			SuggestedAction: &types.SuggestedAction{
-				Type:     "ban_ip",
-				Target:   feat.IP,
-				Duration: "1h",
-			},
-			Mode: "advisory",
-		}
-	}
-
-	// Rule 2: HTTP 404 Flood (Scanning)
-	if feat.Http404Count >= 20 {
-		return &types.Event{
-			ID:          fmt.Sprintf("evt_%d", time.Now().UnixNano()),
-			Timestamp:   time.Now(),
-			Source:      "nginx",
-			Risk:        types.RiskMedium,
-			Confidence:  0.8,
-			Summary:     "Web Scanning Detected (404 Flood)",
-			Explanation: fmt.Sprintf("IP %s triggered %d 404 errors across %d distinct paths.", feat.IP, feat.Http404Count, len(feat.DistinctPaths)),
-			Evidence: []types.Evidence{
+			}
+		case "http_404_count":
+			currentValue = feat.Http404Count
+			evidence = []types.Evidence{
 				{Type: "http_404_count", Value: feat.Http404Count},
 				{Type: "distinct_paths", Value: len(feat.DistinctPaths)},
-			},
-			SuggestedAction: &types.SuggestedAction{
-				Type:     "ban_ip",
-				Target:   feat.IP,
-				Duration: "30m",
-			},
-			Mode: "advisory",
+			}
+		default:
+			continue
+		}
+
+		if currentValue >= rule.Threshold {
+			explanation := ""
+			if rule.Metric == "failed_logins" {
+				explanation = fmt.Sprintf("IP %s attempted %d SSH logins using %d distinct usernames.", feat.IP, feat.FailedLogins, len(feat.DistinctUsers))
+			} else if rule.Metric == "http_404_count" {
+				explanation = fmt.Sprintf("IP %s triggered %d 404 errors across %d distinct paths.", feat.IP, feat.Http404Count, len(feat.DistinctPaths))
+			}
+
+			return &types.Event{
+				ID:          fmt.Sprintf("evt_%d", time.Now().UnixNano()),
+				Timestamp:   time.Now(),
+				Source:      "rule_engine",
+				Risk:        rule.Risk,
+				Confidence:  0.9,
+				Summary:     rule.Summary,
+				Explanation: explanation,
+				Evidence:    evidence,
+				SuggestedAction: &types.SuggestedAction{
+					Type:     rule.Action,
+					Target:   feat.IP,
+					Duration: rule.Duration,
+				},
+				Mode: "advisory",
+			}
 		}
 	}
 
