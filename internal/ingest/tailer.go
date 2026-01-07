@@ -41,7 +41,10 @@ func (f *FileTailer) Start() (<-chan LogLine, error) {
 		ReOpen:    true,
 		MustExist: false,
 		Poll:      true, // Fallback for some filesystems/docker mounts
+		Logger:    tail.DiscardingLogger,
 	}
+
+	log.Printf("Starting tailer for %s (waiting if not present)", f.path)
 
 	t, err := tail.TailFile(f.path, config)
 	if err != nil {
@@ -55,7 +58,7 @@ func (f *FileTailer) Start() (<-chan LogLine, error) {
 		defer close(out)
 		for line := range t.Lines {
 			if line.Err != nil {
-				log.Printf("Error reading file %s: %v", f.path, line.Err)
+				// We don't log every error to avoid spamming if a file is rotated
 				continue
 			}
 			out <- LogLine{

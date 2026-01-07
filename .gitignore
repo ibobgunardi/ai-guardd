@@ -22,4 +22,6 @@ config.full.yml
 config.win.yml
 config.apache.yml
 simulate_*.ps1
-ai-guardd
+/ai-guardd
+/ai-guardd.test
+/ai-guardd.exe

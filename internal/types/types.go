@@ -65,6 +65,10 @@ type Config struct {
 		DiscordWebhook string `yaml:"discord_webhook"`
 	} `yaml:"notification"`
 
+	Action struct {
+		ExecutorSocket string `yaml:"executor_socket"`
+	} `yaml:"action"`
+
 	Output struct {
 		AuditLogPath string `yaml:"audit_log_path"`
 		Format       string `yaml:"format"` // json, text

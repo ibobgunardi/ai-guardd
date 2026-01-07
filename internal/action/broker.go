@@ -8,23 +8,38 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 )
 
 // Broker handles the execution of suggested actions
 type Broker struct {
+	mu             sync.RWMutex
 	ActiveDefense  bool
 	Allowlist      []string
 	DiscordWebhook string
+	ExecutorSocket string
 }
 
 // NewBroker creates a new action broker
-func NewBroker(activeDefense bool, allowlist []string, discordWebhook string) *Broker {
+func NewBroker(activeDefense bool, allowlist []string, discordWebhook string, executorSocket string) *Broker {
 	return &Broker{
 		ActiveDefense:  activeDefense,
 		Allowlist:      allowlist,
 		DiscordWebhook: discordWebhook,
+		ExecutorSocket: executorSocket,
 	}
+}
+
+// UpdateConfig updates the broker's configuration safely at runtime
+func (b *Broker) UpdateConfig(activeDefense bool, allowlist []string, discordWebhook string, executorSocket string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.ActiveDefense = activeDefense
+	b.Allowlist = allowlist
+	b.DiscordWebhook = discordWebhook
+	b.ExecutorSocket = executorSocket
+	log.Println("[CONFIG] Broker configuration updated dynamically")
 }
 
 // Execute processes the event and its suggested action
@@ -36,12 +51,18 @@ func (b *Broker) Execute(evt *types.Event) error {
 	act := evt.SuggestedAction
 
 	// 0. Always Notify if configured (Async)
-	if b.DiscordWebhook != "" {
+	b.mu.RLock()
+	webhook := b.DiscordWebhook
+	activeDefense := b.ActiveDefense
+	allowlist := b.Allowlist
+	b.mu.RUnlock()
+
+	if webhook != "" {
 		go b.sendDiscordAlert(evt)
 	}
 
 	// 1. Check Allowlist
-	for _, allowed := range b.Allowlist {
+	for _, allowed := range allowlist {
 		if allowed == act.Target {
 			log.Printf("[SAFETY] Action BLOCKED by Allowlist for IP: %s", act.Target)
 			return nil
@@ -63,12 +84,24 @@ func (b *Broker) Execute(evt *types.Event) error {
 		return nil
 	}
 
+	b.mu.RLock()
+	executorSocket := b.ExecutorSocket
+	b.mu.RUnlock()
+
+	if executorSocket != "" {
+		if !activeDefense {
+			log.Printf("[SAFE MODE] Would send to executor: ban %s", act.Target)
+			return nil
+		}
+		return b.sendToExecutor("ban", act.Target)
+	}
+
 	cmdStr := b.buildCommand(act)
 	if cmdStr == "" {
 		return nil
 	}
 
-	if !b.ActiveDefense {
+	if !activeDefense {
 		log.Printf("[SAFE MODE] Would execute: %s", cmdStr)
 		return nil
 	}
@@ -92,8 +125,12 @@ func (b *Broker) sendDiscordAlert(evt *types.Event) {
 	body, _ := json.Marshal(msg)
 
 	// Fire and forget, but with timeout
+	b.mu.RLock()
+	webhook := b.DiscordWebhook
+	b.mu.RUnlock()
+
 	client := http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Post(b.DiscordWebhook, "application/json", bytes.NewBuffer(body))
+	resp, err := client.Post(webhook, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		log.Printf("Failed to send Discord alert: %v", err)
 		return
@@ -115,6 +152,22 @@ func (b *Broker) buildCommand(act *types.SuggestedAction) string {
 	default:
 		return ""
 	}
+}
+
+func (b *Broker) sendToExecutor(action, target string) error {
+	conn, err := net.Dial("unix", b.ExecutorSocket)
+	if err != nil {
+		return fmt.Errorf("failed to connect to executor: %w", err)
+	}
+	defer conn.Close()
+
+	_, err = fmt.Fprintf(conn, "%s %s\n", action, target)
+	if err != nil {
+		return fmt.Errorf("failed to send command to executor: %w", err)
+	}
+
+	log.Printf("[BROKER] Command sent to privileged executor: %s %s", action, target)
+	return nil
 }
 
 func isValidIP(ip string) bool {

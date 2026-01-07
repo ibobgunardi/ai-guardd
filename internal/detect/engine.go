@@ -120,3 +120,13 @@ func (e *Engine) ProcessEvent(evt *parser.ParsedEvent) *types.Event {
 
 	return nil
 }
+
+// GetState returns current tracked features for persistence
+func (e *Engine) GetState() map[string]*feature.FeatureVector {
+	return e.features.GetAll()
+}
+
+// LoadState restores features from a map (e.g. from database)
+func (e *Engine) LoadState(vectors map[string]*feature.FeatureVector) {
+	e.features.ReplaceAll(vectors)
+}

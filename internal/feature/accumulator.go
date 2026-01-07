@@ -177,3 +177,21 @@ func (a *Accumulator) evictLowPriority() {
 		}
 	}
 }
+
+// GetAll returns a copy of the current features for persistence
+func (a *Accumulator) GetAll() map[string]*FeatureVector {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	res := make(map[string]*FeatureVector)
+	for k, v := range a.features {
+		res[k] = v
+	}
+	return res
+}
+
+// ReplaceAll replaces the internal feature map (used on load)
+func (a *Accumulator) ReplaceAll(vectors map[string]*FeatureVector) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.features = vectors
+}
