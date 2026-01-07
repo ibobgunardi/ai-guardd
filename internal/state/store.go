@@ -30,13 +30,39 @@ func NewStore(dbPath string) (*Store, error) {
 		last_seen DATETIME,
 		http_404_count INTEGER,
 		distinct_paths TEXT
-	);`
+	);
+
+	CREATE TABLE IF NOT EXISTS events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		server_id TEXT NOT NULL DEFAULT 'localhost',
+		timestamp DATETIME NOT NULL,
+		source TEXT,
+		risk TEXT,
+		summary TEXT,
+		explanation TEXT,
+		suggested_action TEXT,
+		evidence TEXT
+	);
+	CREATE INDEX IF NOT EXISTS idx_events_server ON events(server_id, timestamp);
+	`
 	_, err = db.Exec(query)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Store{db: db}, nil
+}
+
+// SaveEvent saves an event to the events table (for dashboard)
+func (s *Store) SaveEvent(evt interface{}) error {
+	// We'll accept the types.Event and serialize suggested_action as JSON
+	// For now, use raw SQL INSERT
+	query := `INSERT INTO events (timestamp, source, risk, summary, explanation, suggested_action) 
+			  VALUES (datetime('now'), ?, ?, ?, ?, ?)`
+
+	// This is a placeholder - we'll properly type this when integrating
+	_, err := s.db.Exec(query, "", "", "", "", "{}")
+	return err
 }
 
 func (s *Store) SaveAll(vectors map[string]*feature.FeatureVector) error {
@@ -116,4 +142,9 @@ func (s *Store) LoadAll() (map[string]*feature.FeatureVector, error) {
 
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+// GetDB returns the underlying database connection (for dashboard)
+func (s *Store) GetDB() *sql.DB {
+	return s.db
 }

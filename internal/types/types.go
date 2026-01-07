@@ -84,6 +84,11 @@ type Config struct {
 		ExecutorSocket string `yaml:"executor_socket"`
 	} `yaml:"action"`
 
+	Dashboard struct {
+		Enabled bool   `yaml:"enabled"`
+		Port    string `yaml:"port"`
+	} `yaml:"dashboard"`
+
 	Output struct {
 		AuditLogPath string `yaml:"audit_log_path"`
 		Format       string `yaml:"format"` // json, text

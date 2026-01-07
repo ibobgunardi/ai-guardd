@@ -4,6 +4,7 @@ import (
 	"ai-guardd/internal/action"
 	"ai-guardd/internal/audit"
 	"ai-guardd/internal/config"
+	"ai-guardd/internal/dashboard"
 	"ai-guardd/internal/detect"
 	"ai-guardd/internal/explain"
 	"ai-guardd/internal/ingest"
@@ -81,6 +82,21 @@ func runCommand(args []string) {
 		if err == nil {
 			detector.LoadState(vectors)
 			log.Printf("[STATE] Restored %d entities from database", len(vectors))
+		}
+
+		// Start Dashboard if enabled
+		if cfg.Dashboard.Enabled {
+			dashStore := dashboard.NewSQLiteStore(stateStore.GetDB(), "localhost")
+			dashServer, err := dashboard.NewServer(dashStore, cfg.Dashboard.Port)
+			if err != nil {
+				log.Printf("[DASHBOARD] Failed to initialize: %v", err)
+			} else {
+				go func() {
+					if err := dashServer.Start(); err != nil {
+						log.Printf("[DASHBOARD] Failed to start: %v", err)
+					}
+				}()
+			}
 		}
 	}
 	// Initialize Ingest

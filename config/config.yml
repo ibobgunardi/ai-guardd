@@ -33,6 +33,13 @@ detection:
 notification:
   discord_webhook: "https://discord.com/api/webhooks/1458143002110333151/AjYQfKazqPim7tVoAcrD2ZaZajP2nOyI3rh-zt-RmJ_4bMzY6rHXbeJriyONaB7v5isz"        # URL here (e.g. https://discord.com/api/webhooks/...)
 
+action:
+  executor_socket: ""  # Optional: /run/ai-guardd.sock for privilege separation
+
+dashboard:
+  enabled: true
+  port: ":8080"
+
 output:
   audit_log_path: "/var/log/audit.log" # Inside container
   format: "json"

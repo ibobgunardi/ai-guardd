@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Guardd Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-gray-800 border-b border-gray-700">
+            <div class="container mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-2xl font-bold text-white">
+                        🛡️ AI Guardd
+                    </h1>
+                    <div class="flex items-center space-x-4">
+                        <span class="flex items-center">
+                            <span class="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                            <span class="text-sm">{{.Server.Hostname}}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="container mx-auto px-6 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <!-- Total Events -->
+                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    <div class="text-gray-400 text-sm font-medium">Total Events</div>
+                    <div class="text-3xl font-bold mt-2">{{.Stats.TotalEvents}}</div>
+                </div>
+
+                <!-- High Risk -->
+                <div class="bg-red-900/20 border border-red-800 rounded-lg p-6">
+                    <div class="text-red-400 text-sm font-medium">High Risk</div>
+                    <div class="text-3xl font-bold text-red-400 mt-2">{{.Stats.HighRiskCount}}</div>
+                </div>
+
+                <!-- Medium Risk -->
+                <div class="bg-yellow-900/20 border border-yellow-800 rounded-lg p-6">
+                    <div class="text-yellow-400 text-sm font-medium">Medium Risk</div>
+                    <div class="text-3xl font-bold text-yellow-400 mt-2">{{.Stats.MediumRiskCount}}</div>
+                </div>
+
+                <!-- Banned IPs -->
+                <div class="bg-blue-900/20 border border-blue-800 rounded-lg p-6">
+                    <div class="text-blue-400 text-sm font-medium">Top Attackers</div>
+                    <div class="text-3xl font-bold text-blue-400 mt-2">{{len .Stats.TopAttackers}}</div>
+                </div>
+            </div>
+
+            <!-- Recent Events -->
+            <div class="bg-gray-800 rounded-lg border border-gray-700">
+                <div class="px-6 py-4 border-b border-gray-700">
+                    <h2 class="text-xl font-semibold">Recent Security Events</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-gray-900">
+                            <tr class="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                <th class="px-6 py-3">Time</th>
+                                <th class="px-6 py-3">Risk</th>
+                                <th class="px-6 py-3">Summary</th>
+                                <th class="px-6 py-3">IP Address</th>
+                                <th class="px-6 py-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            {{range .Events}}
+                            <tr class="hover:bg-gray-700/50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    {{.Timestamp.Format "15:04:05"}}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {{if eq .Risk "high"}}
+                                    <span class="px-2 py-1 text-xs font-medium bg-red-900/50 text-red-300 rounded">HIGH</span>
+                                    {{else if eq .Risk "medium"}}
+                                    <span class="px-2 py-1 text-xs font-medium bg-yellow-900/50 text-yellow-300 rounded">MEDIUM</span>
+                                    {{else}}
+                                    <span class="px-2 py-1 text-xs font-medium bg-gray-700 text-gray-300 rounded">{{.Risk}}</span>
+                                    {{end}}
+                                </td>
+                                <td class="px-6 py-4 text-sm">{{.Summary}}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-mono">{{.IPAddress}}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{.ActionTaken}}</td>
+                            </tr>
+                            {{else}}
+                            <tr>
+                                <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                    No security events yet. Your server is secure! ✨
+                                </td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh every 5 seconds
+        setTimeout(() => location.reload(), 5000);
+    </script>
+</body>
+</html>
