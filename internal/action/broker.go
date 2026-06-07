@@ -87,6 +87,10 @@ func (b *Broker) Execute(evt *types.Event) error {
 		log.Printf("[NOTIFY] Admin notification triggered for: %s", evt.Summary)
 		return nil
 	}
+	if act.Type != "ban_ip" {
+		log.Printf("[ACTION] Ignoring unsupported action type: %s", act.Type)
+		return nil
+	}
 
 	b.mu.RLock()
 	executorSocket := b.ExecutorSocket
