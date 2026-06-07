@@ -182,9 +182,11 @@ func (a *Accumulator) evictLowPriority() {
 func (a *Accumulator) GetAll() map[string]*FeatureVector {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	res := make(map[string]*FeatureVector)
+	res := make(map[string]*FeatureVector, len(a.features))
 	for k, v := range a.features {
-		res[k] = v
+		if v != nil {
+			res[k] = cloneFeatureVector(v)
+		}
 	}
 	return res
 }
@@ -193,5 +195,25 @@ func (a *Accumulator) GetAll() map[string]*FeatureVector {
 func (a *Accumulator) ReplaceAll(vectors map[string]*FeatureVector) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.features = vectors
+	a.features = make(map[string]*FeatureVector, len(vectors))
+	for k, v := range vectors {
+		if v != nil {
+			a.features[k] = cloneFeatureVector(v)
+		}
+	}
+}
+
+func cloneFeatureVector(v *FeatureVector) *FeatureVector {
+	clone := *v
+	clone.DistinctUsers = cloneBoolMap(v.DistinctUsers)
+	clone.DistinctPaths = cloneBoolMap(v.DistinctPaths)
+	return &clone
+}
+
+func cloneBoolMap(src map[string]bool) map[string]bool {
+	dst := make(map[string]bool, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
 }
