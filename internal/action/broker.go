@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -62,11 +63,9 @@ func (b *Broker) Execute(evt *types.Event) error {
 	}
 
 	// 1. Check Allowlist
-	for _, allowed := range allowlist {
-		if allowed == act.Target {
-			log.Printf("[SAFETY] Action BLOCKED by Allowlist for IP: %s", act.Target)
-			return nil
-		}
+	if isAllowedTarget(act.Target, allowlist) {
+		log.Printf("[SAFETY] Action BLOCKED by Allowlist for IP: %s", act.Target)
+		return nil
 	}
 
 	// 2. Strict Input Validation (Prevent Command Injection)
@@ -172,4 +171,32 @@ func (b *Broker) sendToExecutor(action, target string) error {
 
 func isValidIP(ip string) bool {
 	return net.ParseIP(ip) != nil
+}
+
+func isAllowedTarget(target string, allowlist []string) bool {
+	targetIP := net.ParseIP(target)
+
+	for _, allowed := range allowlist {
+		allowed = strings.TrimSpace(allowed)
+		if allowed == "" {
+			continue
+		}
+		if allowed == target {
+			return true
+		}
+
+		if targetIP == nil {
+			continue
+		}
+
+		if allowedIP := net.ParseIP(allowed); allowedIP != nil && allowedIP.Equal(targetIP) {
+			return true
+		}
+
+		if _, network, err := net.ParseCIDR(allowed); err == nil && network.Contains(targetIP) {
+			return true
+		}
+	}
+
+	return false
 }
