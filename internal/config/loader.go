@@ -70,4 +70,7 @@ func validateConfig(cfg *types.Config) {
 	if cfg.Output.Format == "" {
 		cfg.Output.Format = "json"
 	}
+	if cfg.Output.AuditLogPath == "" {
+		cfg.Output.AuditLogPath = "audit.log"
+	}
 }

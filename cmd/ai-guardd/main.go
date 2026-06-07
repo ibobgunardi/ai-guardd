@@ -47,6 +47,7 @@ func printUsage() {
 	fmt.Println("Usage: ai-guardd <command> [flags]")
 	fmt.Println("Commands:")
 	fmt.Println("  run       Start the agent (Analyzer)")
+	fmt.Println("  audit     Print the configured audit log")
 	fmt.Println("  status    Check agent status")
 	fmt.Println("  executor  Start the privileged executor (Requires root)")
 }
@@ -325,16 +326,36 @@ func sanitize(s string) string {
 }
 
 func auditCommand(args []string) {
-	// Simple implementation: tail the audit log
-	// In production, this would read structured JSON and pretty-print
-	fmt.Println("Reading audit log...")
-	// TODO: Load config to find audit trail path or pass as flag
-	content, err := os.ReadFile("audit.log")
+	fs := flag.NewFlagSet("audit", flag.ExitOnError)
+	configPath := fs.String("config", "/etc/ai-guardd/config.yml", "Path to config file")
+	auditPath := fs.String("path", "", "Path to audit log; overrides config")
+	fs.Parse(args)
+
+	path, err := resolveAuditLogPath(*configPath, *auditPath)
+	if err != nil {
+		fmt.Printf("Error resolving audit log path: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Reading audit log: %s\n", path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Printf("Error reading audit log: %v\n", err)
 		return
 	}
 	fmt.Println(string(content))
+}
+
+func resolveAuditLogPath(configPath, overridePath string) (string, error) {
+	if overridePath != "" {
+		return overridePath, nil
+	}
+
+	cfg, err := config.LoadConfig(configPath)
+	if err != nil {
+		return "", err
+	}
+	return cfg.Output.AuditLogPath, nil
 }
 
 func statusCommand() {
