@@ -2,7 +2,6 @@ package parser
 
 import (
 	"regexp"
-	"strings"
 )
 
 // SSHParser extracts events from sshd logs
@@ -27,11 +26,6 @@ func NewSSHParser() *SSHParser {
 
 // Parse implements the Parser interface
 func (p *SSHParser) Parse(line string) *ParsedEvent {
-	// Basic check to see if it's an sshd line
-	if !strings.Contains(line, "sshd") {
-		return nil
-	}
-
 	// TODO: Parse timestamp from syslog header (Dec 10 12:34:56 ...)
 	// For now, we assume "now" or let the detector use the ingest timestamp
 	// But sticking to the "ParsedEvent" structure:

@@ -31,7 +31,7 @@ detection:
       summary: "Web Scanning Detected (404 Flood)"
 
 notification:
-  discord_webhook: "https://discord.com/api/webhooks/1458143002110333151/AjYQfKazqPim7tVoAcrD2ZaZajP2nOyI3rh-zt-RmJ_4bMzY6rHXbeJriyONaB7v5isz"        # URL here (e.g. https://discord.com/api/webhooks/...)
+  discord_webhook: "${AI_GUARDD_DISCORD_WEBHOOK}" # Optional: set in the environment.
 
 action:
   executor_socket: ""  # Optional: /run/ai-guardd.sock for privilege separation

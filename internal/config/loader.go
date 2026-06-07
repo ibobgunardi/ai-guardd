@@ -4,6 +4,7 @@ import (
 	"ai-guardd/internal/types"
 	"fmt"
 	"os"
+	"reflect"
 
 	"gopkg.in/yaml.v3"
 )
@@ -22,8 +23,34 @@ func LoadConfig(path string) (*types.Config, error) {
 		return nil, fmt.Errorf("failed to decode config: %w", err)
 	}
 
+	expandEnvStrings(reflect.ValueOf(&cfg))
 	validateConfig(&cfg)
 	return &cfg, nil
+}
+
+func expandEnvStrings(value reflect.Value) {
+	if !value.IsValid() {
+		return
+	}
+
+	switch value.Kind() {
+	case reflect.Pointer:
+		if !value.IsNil() {
+			expandEnvStrings(value.Elem())
+		}
+	case reflect.Struct:
+		for i := 0; i < value.NumField(); i++ {
+			expandEnvStrings(value.Field(i))
+		}
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < value.Len(); i++ {
+			expandEnvStrings(value.Index(i))
+		}
+	case reflect.String:
+		if value.CanSet() {
+			value.SetString(os.ExpandEnv(value.String()))
+		}
+	}
 }
 
 // validateConfig applies defaults and hard rules

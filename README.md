@@ -48,7 +48,15 @@
       active_defense: true # Set to false for Advisory Mode
     
     notification:
-      discord_webhook: "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
+      discord_webhook: "${AI_GUARDD_DISCORD_WEBHOOK}"
+    ```
+    Then set secrets in the service environment instead of committing them:
+    ```bash
+    sudo systemctl edit ai-guardd
+    ```
+    ```ini
+    [Service]
+    Environment=AI_GUARDD_DISCORD_WEBHOOK=<discord-webhook-url>
     ```
 4.  **Run**:
     ```bash
