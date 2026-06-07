@@ -9,6 +9,11 @@ import (
 	"strconv"
 )
 
+const (
+	defaultEventLimit = 100
+	maxEventLimit     = 500
+)
+
 //go:embed templates/*
 var templatesFS embed.FS
 
@@ -58,7 +63,7 @@ func (s *Server) Start() error {
 
 // handleDashboard renders the main dashboard page
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	events, _ := s.store.ListEvents(100)
+	events, _ := s.store.ListEvents(defaultEventLimit)
 	stats, _ := s.store.GetStats()
 	server, _ := s.store.GetServerInfo()
 
@@ -73,15 +78,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 
 // handleAPIEvents returns events as JSON
 func (s *Server) handleAPIEvents(w http.ResponseWriter, r *http.Request) {
-	limitStr := r.URL.Query().Get("limit")
-	limit := 100
-	if limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil {
-			limit = l
-		}
-	}
-
-	events, err := s.store.ListEvents(limit)
+	events, err := s.store.ListEvents(eventLimit(r.URL.Query().Get("limit")))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -89,6 +86,24 @@ func (s *Server) handleAPIEvents(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(events)
+}
+
+func eventLimit(raw string) int {
+	if raw == "" {
+		return defaultEventLimit
+	}
+
+	limit, err := strconv.Atoi(raw)
+	if err != nil {
+		return defaultEventLimit
+	}
+	if limit < 1 {
+		return 1
+	}
+	if limit > maxEventLimit {
+		return maxEventLimit
+	}
+	return limit
 }
 
 // handleAPIStats returns statistics as JSON
