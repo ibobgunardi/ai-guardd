@@ -50,6 +50,18 @@ output:
 	}
 }
 
+func TestLoadConfigDefaultsAuditLogPath(t *testing.T) {
+	path := writeConfig(t, `output: {}`)
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+	if cfg.Output.AuditLogPath != "audit.log" {
+		t.Fatalf("AuditLogPath default = %q", cfg.Output.AuditLogPath)
+	}
+}
+
 func writeConfig(t *testing.T, content string) string {
 	t.Helper()
 
