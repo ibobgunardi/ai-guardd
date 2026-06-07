@@ -2,12 +2,17 @@ package action
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"os"
 	"os/exec"
 	"strings"
 )
+
+const executorSocketMode os.FileMode = 0o660
 
 // Executor runs as root and listens for ban requests over a Unix socket
 type Executor struct {
@@ -22,19 +27,10 @@ func NewExecutor(socketPath string) *Executor {
 }
 
 func (e *Executor) Start() error {
-	// Clean up existing socket
-	if _, err := os.Stat(e.SocketPath); err == nil {
-		os.Remove(e.SocketPath)
-	}
-
-	ln, err := net.Listen("unix", e.SocketPath)
+	ln, err := e.listen()
 	if err != nil {
 		return err
 	}
-
-	// Ensure the socket is accessible by the analyzer group/user
-	// In production, we'd set specific permissions (e.g. 0660)
-	os.Chmod(e.SocketPath, 0666)
 
 	log.Printf("[EXECUTOR] Listening on %s", e.SocketPath)
 
@@ -46,6 +42,43 @@ func (e *Executor) Start() error {
 		}
 		go e.handleConnection(conn)
 	}
+}
+
+func (e *Executor) listen() (net.Listener, error) {
+	if err := removeStaleSocket(e.SocketPath); err != nil {
+		return nil, err
+	}
+
+	ln, err := net.Listen("unix", e.SocketPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := os.Chmod(e.SocketPath, executorSocketMode); err != nil {
+		ln.Close()
+		os.Remove(e.SocketPath)
+		return nil, fmt.Errorf("failed to restrict executor socket permissions: %w", err)
+	}
+
+	return ln, nil
+}
+
+func removeStaleSocket(path string) error {
+	info, err := os.Lstat(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to inspect executor socket path: %w", err)
+	}
+	if info.Mode()&os.ModeSocket == 0 {
+		return fmt.Errorf("refusing to remove non-socket executor path %q", path)
+	}
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("failed to remove stale executor socket: %w", err)
+	}
+
+	return nil
 }
 
 func (e *Executor) handleConnection(conn net.Conn) {
