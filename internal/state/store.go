@@ -131,13 +131,28 @@ func (s *Store) LoadAll() (map[string]*feature.FeatureVector, error) {
 
 		v.FirstSeen = firstSeen
 		v.LastSeen = lastSeen
-		json.Unmarshal([]byte(usersJson), &v.DistinctUsers)
-		json.Unmarshal([]byte(pathsJson), &v.DistinctPaths)
+		v.DistinctUsers = decodeBoolMap(usersJson)
+		v.DistinctPaths = decodeBoolMap(pathsJson)
 
 		vectors[v.IP] = &v
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return vectors, nil
+}
+
+func decodeBoolMap(raw string) map[string]bool {
+	result := make(map[string]bool)
+	if raw == "" {
+		return result
+	}
+	if err := json.Unmarshal([]byte(raw), &result); err != nil || result == nil {
+		return make(map[string]bool)
+	}
+	return result
 }
 
 func (s *Store) Close() error {
