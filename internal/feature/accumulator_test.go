@@ -91,3 +91,68 @@ func TestAccumulator_GetAll_ReplaceAll(t *testing.T) {
 		t.Error("State was not properly restored")
 	}
 }
+
+func TestAccumulator_GetAllReturnsIndependentCopy(t *testing.T) {
+	acc := NewAccumulator(1 * time.Hour)
+
+	acc.AddFailure("1.1.1.1", "admin")
+	state := acc.GetAll()
+	state["1.1.1.1"].FailedLogins = 99
+	state["1.1.1.1"].DistinctUsers["mutated"] = true
+
+	feat := acc.GetFeatures("1.1.1.1")
+	if feat.FailedLogins != 1 {
+		t.Fatalf("FailedLogins = %d, want 1", feat.FailedLogins)
+	}
+	if feat.DistinctUsers["mutated"] {
+		t.Fatal("GetAll result should not share distinct user map with accumulator")
+	}
+}
+
+func TestAccumulator_ReplaceAllCopiesInputState(t *testing.T) {
+	acc := NewAccumulator(1 * time.Hour)
+	input := map[string]*FeatureVector{
+		"2.2.2.2": {
+			IP:            "2.2.2.2",
+			FailedLogins:  2,
+			DistinctUsers: map[string]bool{"root": true},
+			FirstSeen:     time.Now(),
+			LastSeen:      time.Now(),
+			DistinctPaths: map[string]bool{"/admin": true},
+		},
+	}
+
+	acc.ReplaceAll(input)
+	input["2.2.2.2"].FailedLogins = 50
+	input["2.2.2.2"].DistinctUsers["mutated"] = true
+
+	feat := acc.GetFeatures("2.2.2.2")
+	if feat.FailedLogins != 2 {
+		t.Fatalf("FailedLogins = %d, want 2", feat.FailedLogins)
+	}
+	if feat.DistinctUsers["mutated"] {
+		t.Fatal("ReplaceAll should not share distinct user map with input")
+	}
+}
+
+func TestAccumulator_ReplaceAllInitializesMissingMaps(t *testing.T) {
+	acc := NewAccumulator(1 * time.Hour)
+	acc.ReplaceAll(map[string]*FeatureVector{
+		"3.3.3.3": {
+			IP:           "3.3.3.3",
+			FailedLogins: 1,
+			FirstSeen:    time.Now(),
+			LastSeen:     time.Now(),
+		},
+	})
+
+	feat := acc.AddFailure("3.3.3.3", "admin")
+	if !feat.DistinctUsers["admin"] {
+		t.Fatalf("DistinctUsers after update = %#v", feat.DistinctUsers)
+	}
+
+	feat = acc.AddHttp404("3.3.3.3", "/login")
+	if !feat.DistinctPaths["/login"] {
+		t.Fatalf("DistinctPaths after update = %#v", feat.DistinctPaths)
+	}
+}
