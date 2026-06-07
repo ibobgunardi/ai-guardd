@@ -43,6 +43,25 @@ func TestResolveAuditLogPathUsesConfigDefault(t *testing.T) {
 	}
 }
 
+func TestSanitizeStripsTerminalControlRunes(t *testing.T) {
+	input := "safe\x1b[31m red\x7f \u009b31m text"
+	got := sanitize(input)
+	want := "safe[31m red 31m text"
+
+	if got != want {
+		t.Fatalf("sanitize() = %q, want %q", got, want)
+	}
+}
+
+func TestSanitizeKeepsNewlineAndTab(t *testing.T) {
+	input := "line one\n\tline two"
+	got := sanitize(input)
+
+	if got != input {
+		t.Fatalf("sanitize() = %q, want %q", got, input)
+	}
+}
+
 func writeMainTestConfig(t *testing.T, content string) string {
 	t.Helper()
 

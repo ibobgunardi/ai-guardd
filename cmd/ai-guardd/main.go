@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"unicode"
 )
 
 func main() {
@@ -318,7 +319,7 @@ func sanitize(s string) string {
 	var builder strings.Builder
 	for _, r := range s {
 		// Allow printable characters, newline, and tab
-		if r >= 32 || r == '\n' || r == '\t' {
+		if r == '\n' || r == '\t' || !unicode.IsControl(r) {
 			builder.WriteRune(r)
 		}
 	}
