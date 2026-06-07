@@ -9,6 +9,7 @@ type SSHParser struct {
 	// Pre-compiled regexes
 	reFailed        *regexp.Regexp
 	reFailedInvalid *regexp.Regexp
+	reInvalidUser   *regexp.Regexp
 	reAccepted      *regexp.Regexp
 }
 
@@ -17,6 +18,8 @@ func NewSSHParser() *SSHParser {
 	return &SSHParser{
 		// Failed password for invalid user root from 1.2.3.4 ...
 		reFailedInvalid: regexp.MustCompile(`Failed password for invalid user (\S+) from (\S+)`),
+		// Invalid user root from 1.2.3.4 ...
+		reInvalidUser: regexp.MustCompile(`Invalid user (\S+) from (\S+)`),
 		// Failed password for root from 1.2.3.4 ...
 		reFailed: regexp.MustCompile(`Failed password for (\S+) from (\S+)`),
 		// Accepted password for root from 1.2.3.4 ...
@@ -37,6 +40,14 @@ func (p *SSHParser) Parse(line string) *ParsedEvent {
 
 	// Check for "Invalid user" first (more specific)
 	if matches := p.reFailedInvalid.FindStringSubmatch(line); len(matches) > 2 {
+		evt.Type = "login_failed"
+		evt.User = matches[1]
+		evt.IP = matches[2]
+		return evt
+	}
+
+	// Check for standalone invalid user lines
+	if matches := p.reInvalidUser.FindStringSubmatch(line); len(matches) > 2 {
 		evt.Type = "login_failed"
 		evt.User = matches[1]
 		evt.IP = matches[2]
