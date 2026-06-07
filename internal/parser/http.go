@@ -15,11 +15,12 @@ type HTTPParser struct {
 func NewHTTPParser(sourceLabel string) *HTTPParser {
 	// Flexible regex for CLF/Combined
 	// Matches: IP, User, Timestamp, Method, URL, Proto, Status, Size, Referer, UA
+	// The response size may be "-" when the server has no byte count.
 	if sourceLabel == "" {
 		sourceLabel = "web_server"
 	}
 	return &HTTPParser{
-		re:     regexp.MustCompile(`^(\S+) \S+ (\S+) \[([^\]]+)\] "(\S+) (\S+) ([^"]+)" (\d+) (\d+) "([^"]*)" "([^"]*)"`),
+		re:     regexp.MustCompile(`^(\S+) \S+ (\S+) \[([^\]]+)\] "(\S+) (\S+) ([^"]+)" (\d+) (\d+|-) "([^"]*)" "([^"]*)"`),
 		source: sourceLabel,
 	}
 }
