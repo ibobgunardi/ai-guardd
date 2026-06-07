@@ -62,6 +62,33 @@ func TestLoadConfigDefaultsAuditLogPath(t *testing.T) {
 	}
 }
 
+func TestLoadConfigDefaultsDashboardPort(t *testing.T) {
+	path := writeConfig(t, `dashboard: {}`)
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+	if cfg.Dashboard.Port != ":8080" {
+		t.Fatalf("Dashboard.Port default = %q", cfg.Dashboard.Port)
+	}
+}
+
+func TestLoadConfigKeepsDashboardPort(t *testing.T) {
+	path := writeConfig(t, `
+dashboard:
+  port: ":9091"
+`)
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+	if cfg.Dashboard.Port != ":9091" {
+		t.Fatalf("Dashboard.Port = %q", cfg.Dashboard.Port)
+	}
+}
+
 func writeConfig(t *testing.T, content string) string {
 	t.Helper()
 
