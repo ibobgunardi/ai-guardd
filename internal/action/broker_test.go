@@ -1,6 +1,13 @@
 package action
 
-import "testing"
+import (
+	"errors"
+	"reflect"
+	"strings"
+	"testing"
+
+	"ai-guardd/internal/types"
+)
 
 func TestIsAllowedTargetMatchesExactIP(t *testing.T) {
 	allowlist := []string{"127.0.0.1", "192.0.2.10"}
@@ -35,5 +42,89 @@ func TestIsAllowedTargetIgnoresInvalidAllowlistEntries(t *testing.T) {
 	}
 	if !isAllowedTarget("not-a-cidr", allowlist) {
 		t.Fatal("literal allowlist entries should still match the same literal target")
+	}
+}
+
+func TestExecuteActiveDefenseRunsIPTablesWithoutExecutor(t *testing.T) {
+	broker := NewBroker(true, nil, "", "")
+	var gotName string
+	var gotArgs []string
+	broker.runCommand = func(name string, args ...string) error {
+		gotName = name
+		gotArgs = append([]string(nil), args...)
+		return nil
+	}
+
+	err := broker.Execute(banEvent("203.0.113.10"))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	if gotName != "iptables" {
+		t.Fatalf("command name = %q", gotName)
+	}
+	wantArgs := []string{"-A", "INPUT", "-s", "203.0.113.10", "-j", "DROP"}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("command args = %#v, want %#v", gotArgs, wantArgs)
+	}
+}
+
+func TestExecuteSafeModeDoesNotRunIPTables(t *testing.T) {
+	broker := NewBroker(false, nil, "", "")
+	called := false
+	broker.runCommand = func(name string, args ...string) error {
+		called = true
+		return nil
+	}
+
+	err := broker.Execute(banEvent("203.0.113.20"))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if called {
+		t.Fatal("safe mode should not run iptables")
+	}
+}
+
+func TestExecuteAllowlistBlocksIPTables(t *testing.T) {
+	broker := NewBroker(true, []string{"203.0.113.0/24"}, "", "")
+	called := false
+	broker.runCommand = func(name string, args ...string) error {
+		called = true
+		return nil
+	}
+
+	err := broker.Execute(banEvent("203.0.113.30"))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if called {
+		t.Fatal("allowlisted target should not run iptables")
+	}
+}
+
+func TestExecuteReturnsIPTablesError(t *testing.T) {
+	broker := NewBroker(true, nil, "", "")
+	broker.runCommand = func(name string, args ...string) error {
+		return errors.New("iptables failed")
+	}
+
+	err := broker.Execute(banEvent("203.0.113.40"))
+	if err == nil {
+		t.Fatal("expected Execute() error")
+	}
+	if !strings.Contains(err.Error(), "failed to ban IP 203.0.113.40") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func banEvent(target string) *types.Event {
+	return &types.Event{
+		Summary: "test alert",
+		SuggestedAction: &types.SuggestedAction{
+			Type:     "ban_ip",
+			Target:   target,
+			Duration: "1h",
+		},
 	}
 }

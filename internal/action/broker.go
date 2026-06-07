@@ -8,10 +8,13 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
 )
+
+type commandRunner func(name string, args ...string) error
 
 // Broker handles the execution of suggested actions
 type Broker struct {
@@ -20,6 +23,7 @@ type Broker struct {
 	Allowlist      []string
 	DiscordWebhook string
 	ExecutorSocket string
+	runCommand     commandRunner
 }
 
 // NewBroker creates a new action broker
@@ -29,6 +33,7 @@ func NewBroker(activeDefense bool, allowlist []string, discordWebhook string, ex
 		Allowlist:      allowlist,
 		DiscordWebhook: discordWebhook,
 		ExecutorSocket: executorSocket,
+		runCommand:     runSystemCommand,
 	}
 }
 
@@ -107,7 +112,7 @@ func (b *Broker) Execute(evt *types.Event) error {
 
 	log.Printf("[ACTIVE DEFENSE] Executing: %s", cmdStr)
 
-	return nil
+	return b.executeCommand(act)
 }
 
 // sendDiscordAlert sends a JSON payload to Discord
@@ -151,6 +156,27 @@ func (b *Broker) buildCommand(act *types.SuggestedAction) string {
 	default:
 		return ""
 	}
+}
+
+func (b *Broker) executeCommand(act *types.SuggestedAction) error {
+	run := b.runCommand
+	if run == nil {
+		run = runSystemCommand
+	}
+
+	switch act.Type {
+	case "ban_ip":
+		if err := run("iptables", "-A", "INPUT", "-s", act.Target, "-j", "DROP"); err != nil {
+			return fmt.Errorf("failed to ban IP %s: %w", act.Target, err)
+		}
+		return nil
+	default:
+		return nil
+	}
+}
+
+func runSystemCommand(name string, args ...string) error {
+	return exec.Command(name, args...).Run()
 }
 
 func (b *Broker) sendToExecutor(action, target string) error {
