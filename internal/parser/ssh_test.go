@@ -25,6 +25,26 @@ func TestSSHParser_Parse_Success(t *testing.T) {
 	}
 }
 
+func TestSSHParser_Parse_StandaloneInvalidUser(t *testing.T) {
+	parser := NewSSHParser()
+
+	line := "Invalid user deploy from 203.0.113.42 port 42422"
+	evt := parser.Parse(line)
+
+	if evt == nil {
+		t.Fatal("Expected parsed event, got nil")
+	}
+	if evt.Type != "login_failed" {
+		t.Errorf("Expected type 'login_failed', got '%s'", evt.Type)
+	}
+	if evt.User != "deploy" {
+		t.Errorf("Expected user 'deploy', got '%s'", evt.User)
+	}
+	if evt.IP != "203.0.113.42" {
+		t.Errorf("Expected IP '203.0.113.42', got '%s'", evt.IP)
+	}
+}
+
 func TestSSHParser_Parse_Accepted(t *testing.T) {
 	parser := NewSSHParser()
 
