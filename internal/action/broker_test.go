@@ -118,6 +118,21 @@ func TestExecuteReturnsIPTablesError(t *testing.T) {
 	}
 }
 
+func TestExecuteIgnoresUnsupportedActionWithExecutor(t *testing.T) {
+	broker := NewBroker(true, nil, "", "missing-executor.sock")
+
+	err := broker.Execute(&types.Event{
+		Summary: "unsupported action",
+		SuggestedAction: &types.SuggestedAction{
+			Type:   "restart_service",
+			Target: "ssh",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+}
+
 func banEvent(target string) *types.Event {
 	return &types.Event{
 		Summary: "test alert",
