@@ -35,8 +35,14 @@ var (
 	})
 )
 
+// NewHandler returns a standalone Prometheus metrics handler.
+func NewHandler() http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	return mux
+}
+
 // StartServer starts the Prometheus metrics HTTP server
 func StartServer(addr string) error {
-	http.Handle("/metrics", promhttp.Handler())
-	return http.ListenAndServe(addr, nil)
+	return http.ListenAndServe(addr, NewHandler())
 }
