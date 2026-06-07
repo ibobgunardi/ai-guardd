@@ -73,4 +73,7 @@ func validateConfig(cfg *types.Config) {
 	if cfg.Output.AuditLogPath == "" {
 		cfg.Output.AuditLogPath = "audit.log"
 	}
+	if cfg.Dashboard.Port == "" {
+		cfg.Dashboard.Port = ":8080"
+	}
 }
