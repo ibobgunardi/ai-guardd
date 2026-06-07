@@ -28,6 +28,17 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      - name: Check module files
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run vet
+        run: go vet ./...
+
       - name: Run tests
         run: go test ./... -count=1 -timeout=60s
 
