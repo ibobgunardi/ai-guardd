@@ -63,6 +63,11 @@ func (s *Server) Start() error {
 
 // handleDashboard renders the main dashboard page
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
 	events, err := s.store.ListEvents(defaultEventLimit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

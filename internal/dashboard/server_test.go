@@ -104,6 +104,25 @@ func TestHandleDashboardReturnsTemplateErrors(t *testing.T) {
 	}
 }
 
+func TestHandleDashboardReturnsNotFoundForUnknownPaths(t *testing.T) {
+	store := &fakeEventStore{events: []EventRecord{{ID: 1}}}
+	server := &Server{
+		store:     store,
+		templates: template.Must(template.New("dashboard.html").Parse(`ok`)),
+	}
+	req := httptest.NewRequest(http.MethodGet, "/missing", nil)
+	rec := httptest.NewRecorder()
+
+	server.handleDashboard(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+	if store.lastLimit != 0 {
+		t.Fatalf("store was loaded with limit %d", store.lastLimit)
+	}
+}
+
 func TestHandleAPIEventsClampsLimit(t *testing.T) {
 	tests := []struct {
 		name  string
