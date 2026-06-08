@@ -46,6 +46,10 @@ type OllamaResponse struct {
 }
 
 func (e *LLMExplainer) Explain(event *types.Event) error {
+	if event == nil {
+		return fmt.Errorf("event is nil")
+	}
+
 	prompt := e.buildPrompt(event)
 
 	reqBody := OllamaRequest{
