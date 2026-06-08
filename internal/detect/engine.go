@@ -5,6 +5,7 @@ import (
 	"ai-guardd/internal/parser"
 	"ai-guardd/internal/types"
 	"fmt"
+	"net"
 	"time"
 )
 
@@ -150,8 +151,13 @@ func (e *Engine) ProcessEvent(evt *parser.ParsedEvent) *types.Event {
 		event := e.checkThresholds(feat)
 		if event != nil && evt.Source == "mysql" {
 			event.Summary = "Database Brute Force Detected"
-			event.Explanation = fmt.Sprintf("IP %s attempted %d database logins using %d distinct usernames.", feat.IP, feat.FailedLogins, len(feat.DistinctUsers))
+			event.Explanation = fmt.Sprintf("Host %s attempted %d database logins using %d distinct usernames.", feat.IP, feat.FailedLogins, len(feat.DistinctUsers))
 			event.Source = "mysql"
+			if event.SuggestedAction != nil && net.ParseIP(event.SuggestedAction.Target) == nil {
+				event.SuggestedAction.Type = "notify_admin"
+				event.SuggestedAction.Target = "admin"
+				event.SuggestedAction.Duration = "0"
+			}
 		}
 		return event
 	}
