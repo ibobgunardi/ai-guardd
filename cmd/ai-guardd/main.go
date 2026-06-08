@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unicode"
 )
 
@@ -233,6 +234,8 @@ func runCommand(args []string) {
 			}
 
 			if parsedEvt != nil {
+				applyIngestTimestamp(parsedEvt, msg.Timestamp)
+
 				// Increment events processed
 				metrics.EventsProcessed.Inc()
 
@@ -332,6 +335,13 @@ func formatSuggestedAction(action *types.SuggestedAction) string {
 		return "none"
 	}
 	return fmt.Sprintf("%s %s (%s)", action.Type, action.Target, action.Duration)
+}
+
+func applyIngestTimestamp(event *parser.ParsedEvent, timestamp int64) {
+	if event == nil || !event.Timestamp.IsZero() || timestamp <= 0 {
+		return
+	}
+	event.Timestamp = time.Unix(timestamp, 0)
 }
 
 func auditCommand(args []string) {

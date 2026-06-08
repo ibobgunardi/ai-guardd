@@ -1,10 +1,12 @@
 package main
 
 import (
+	"ai-guardd/internal/parser"
 	"ai-guardd/internal/types"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestResolveAuditLogPathUsesOverride(t *testing.T) {
@@ -81,6 +83,39 @@ func TestFormatSuggestedActionHandlesNil(t *testing.T) {
 	got := formatSuggestedAction(nil)
 	if got != "none" {
 		t.Fatalf("formatSuggestedAction(nil) = %q", got)
+	}
+}
+
+func TestApplyIngestTimestampFillsMissingTimestamp(t *testing.T) {
+	event := &parser.ParsedEvent{}
+	ingestTimestamp := int64(1780830000)
+
+	applyIngestTimestamp(event, ingestTimestamp)
+
+	want := time.Unix(ingestTimestamp, 0)
+	if !event.Timestamp.Equal(want) {
+		t.Fatalf("Timestamp = %s, want %s", event.Timestamp, want)
+	}
+}
+
+func TestApplyIngestTimestampKeepsParsedTimestamp(t *testing.T) {
+	parsedTimestamp := time.Unix(1780830000, 0)
+	event := &parser.ParsedEvent{Timestamp: parsedTimestamp}
+
+	applyIngestTimestamp(event, parsedTimestamp.Add(time.Hour).Unix())
+
+	if !event.Timestamp.Equal(parsedTimestamp) {
+		t.Fatalf("Timestamp = %s, want %s", event.Timestamp, parsedTimestamp)
+	}
+}
+
+func TestApplyIngestTimestampIgnoresEmptyTimestamp(t *testing.T) {
+	event := &parser.ParsedEvent{}
+
+	applyIngestTimestamp(event, 0)
+
+	if !event.Timestamp.IsZero() {
+		t.Fatalf("Timestamp = %s, want zero", event.Timestamp)
 	}
 }
 
