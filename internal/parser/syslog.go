@@ -3,6 +3,7 @@ package parser
 import (
 	"regexp"
 	"strings"
+	"time"
 )
 
 // SyslogParser parses generic system logs
@@ -21,14 +22,17 @@ func NewSyslogParser() *SyslogParser {
 }
 
 func (p *SyslogParser) Parse(line string) *ParsedEvent {
+	timestamp := parseSyslogTimestamp(line, time.Now())
+
 	// MySQL Check
 	if matches := p.reMySQL.FindStringSubmatch(line); len(matches) > 2 {
 		return &ParsedEvent{
-			Source: "mysql",
-			Type:   "login_failed",
-			User:   matches[1],
-			IP:     matches[2],
-			Raw:    line,
+			Source:    "mysql",
+			Timestamp: timestamp,
+			Type:      "login_failed",
+			User:      matches[1],
+			IP:        matches[2],
+			Raw:       line,
 		}
 	}
 
@@ -36,11 +40,12 @@ func (p *SyslogParser) Parse(line string) *ParsedEvent {
 	if strings.Contains(line, "sudo") {
 		if matches := p.reSudo.FindStringSubmatch(line); len(matches) > 1 {
 			return &ParsedEvent{
-				Source: "syslog_sudo",
-				Type:   "priv_escalation_fail",
-				User:   matches[1],
-				IP:     "local",
-				Raw:    line,
+				Source:    "syslog_sudo",
+				Timestamp: timestamp,
+				Type:      "priv_escalation_fail",
+				User:      matches[1],
+				IP:        "local",
+				Raw:       line,
 			}
 		}
 	}
