@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -62,9 +63,11 @@ func (j *JournalReader) Start() (<-chan LogLine, error) {
 				continue
 			}
 
+			source := journalSource(entry)
+
 			// SECURITY: Anti-Spoofing Check for Critical Services
 			// If it claims to be sshd, ensure it is running as root (UID 0) or is actually sshd binary
-			if entry.SyslogIdentifier == "sshd" {
+			if source == "sshd" {
 				// SSHD must be root (UID 0) in most setups
 				if entry.UID != "0" {
 					// Detects "logger -t sshd" from non-root user
@@ -74,10 +77,10 @@ func (j *JournalReader) Start() (<-chan LogLine, error) {
 			}
 
 			// Format: "Processname[PID]: Message" to mimic syslog for existing parsers
-			content := fmt.Sprintf("%s[%s]: %s", entry.SyslogIdentifier, entry.PID, entry.Message)
+			content := fmt.Sprintf("%s[%s]: %s", source, entry.PID, entry.Message)
 
 			out <- LogLine{
-				Source:    "journald",
+				Source:    source,
 				Timestamp: journalTimestamp(entry.Timestamp, time.Now()),
 				Content:   content,
 			}
@@ -88,6 +91,16 @@ func (j *JournalReader) Start() (<-chan LogLine, error) {
 	}()
 
 	return out, nil
+}
+
+func journalSource(entry JournalEntry) string {
+	if source := strings.TrimSpace(entry.SyslogIdentifier); source != "" {
+		return source
+	}
+	if source := strings.TrimSpace(entry.Comm); source != "" {
+		return source
+	}
+	return "journald"
 }
 
 func journalTimestamp(raw string, fallback time.Time) int64 {
