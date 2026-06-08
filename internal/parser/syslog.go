@@ -16,7 +16,7 @@ func NewSyslogParser() *SyslogParser {
 		// sudo: pam_unix(sudo:auth): authentication failure; logname= user=root host= ...
 		reSudo: regexp.MustCompile(`sudo:auth.*authentication failure;.*user=(\S+)`),
 		// MySQL: Access denied for user 'root'@'1.2.3.4'
-		reMySQL: regexp.MustCompile(`Access denied for user '(\S+)'@'(\S+)'`),
+		reMySQL: regexp.MustCompile(`Access denied for user '([^']*)'@'([^']*)'`),
 	}
 }
 
