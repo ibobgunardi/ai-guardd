@@ -113,14 +113,14 @@ func (e *Executor) handleConnection(conn net.Conn) {
 
 func (e *Executor) banIP(ip string) {
 	log.Printf("[EXECUTOR] Banning IP: %s", ip)
-	if err := e.run("iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"); err != nil {
+	if err := e.run(firewallCommand(ip), "-A", "INPUT", "-s", ip, "-j", "DROP"); err != nil {
 		log.Printf("[EXECUTOR] Failed to ban %s: %v", ip, err)
 	}
 }
 
 func (e *Executor) unbanIP(ip string) {
 	log.Printf("[EXECUTOR] Unbanning IP: %s", ip)
-	if err := e.run("iptables", "-D", "INPUT", "-s", ip, "-j", "DROP"); err != nil {
+	if err := e.run(firewallCommand(ip), "-D", "INPUT", "-s", ip, "-j", "DROP"); err != nil {
 		log.Printf("[EXECUTOR] Failed to unban %s: %v", ip, err)
 	}
 }
