@@ -126,6 +126,38 @@ func TestAccumulator_GetFeaturesReturnsIndependentCopy(t *testing.T) {
 	}
 }
 
+func TestAccumulator_AddFailureReturnsIndependentCopy(t *testing.T) {
+	acc := NewAccumulator(1 * time.Hour)
+
+	feat := acc.AddFailure("1.1.1.1", "admin")
+	feat.FailedLogins = 99
+	feat.DistinctUsers["mutated"] = true
+
+	got := acc.GetFeatures("1.1.1.1")
+	if got.FailedLogins != 1 {
+		t.Fatalf("FailedLogins = %d, want 1", got.FailedLogins)
+	}
+	if got.DistinctUsers["mutated"] {
+		t.Fatal("AddFailure result should not share distinct user map with accumulator")
+	}
+}
+
+func TestAccumulator_AddHttp404ReturnsIndependentCopy(t *testing.T) {
+	acc := NewAccumulator(1 * time.Hour)
+
+	feat := acc.AddHttp404("1.1.1.1", "/admin")
+	feat.Http404Count = 99
+	feat.DistinctPaths["mutated"] = true
+
+	got := acc.GetFeatures("1.1.1.1")
+	if got.Http404Count != 1 {
+		t.Fatalf("Http404Count = %d, want 1", got.Http404Count)
+	}
+	if got.DistinctPaths["mutated"] {
+		t.Fatal("AddHttp404 result should not share distinct path map with accumulator")
+	}
+}
+
 func TestAccumulator_ReplaceAllCopiesInputState(t *testing.T) {
 	acc := NewAccumulator(1 * time.Hour)
 	input := map[string]*FeatureVector{
