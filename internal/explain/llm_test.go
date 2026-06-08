@@ -76,3 +76,15 @@ func TestLLMExplainerRejectsEmptyExplanation(t *testing.T) {
 		t.Fatalf("Explanation = %q", evt.Explanation)
 	}
 }
+
+func TestLLMExplainerRejectsNilEvent(t *testing.T) {
+	explainer := NewLLMExplainer("http://127.0.0.1:1", "test-model")
+
+	err := explainer.Explain(nil)
+	if err == nil {
+		t.Fatal("expected nil event error")
+	}
+	if !strings.Contains(err.Error(), "event is nil") {
+		t.Fatalf("error = %v", err)
+	}
+}

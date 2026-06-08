@@ -18,6 +18,10 @@ func NewTemplateExplainer() *TemplateExplainer {
 }
 
 func (e *TemplateExplainer) Explain(event *types.Event) error {
+	if event == nil {
+		return fmt.Errorf("event is nil")
+	}
+
 	// If explanation is already set by detector, we might append or leave it.
 	// For now, we ensure it exists.
 	if event.Explanation == "" {
