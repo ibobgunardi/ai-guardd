@@ -23,8 +23,12 @@ func NewEngine(rules []types.DetectionRule) *Engine {
 	}
 	return &Engine{
 		features: feature.NewAccumulator(1 * time.Hour), // Keep history for 1 hour
-		rules:    rules,
+		rules:    cloneRules(rules),
 	}
+}
+
+func cloneRules(rules []types.DetectionRule) []types.DetectionRule {
+	return append([]types.DetectionRule(nil), rules...)
 }
 
 // getDefaultRules returns the built-in detection rules
