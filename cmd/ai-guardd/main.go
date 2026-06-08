@@ -341,7 +341,7 @@ func parseLogMessage(msg ingest.LogLine, cfg *types.Config, sshParser *parser.SS
 }
 
 func parseJournalMessage(source, content string, sshParser *parser.SSHParser, syslogParser *parser.SyslogParser) *parser.ParsedEvent {
-	switch strings.ToLower(source) {
+	switch strings.ToLower(strings.TrimSpace(source)) {
 	case "sshd", "ssh":
 		return sshParser.Parse(content)
 	case "sudo", "mysql", "mysqld", "mariadbd":

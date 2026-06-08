@@ -175,6 +175,32 @@ func TestParseLogMessageRoutesJournaldMySQL(t *testing.T) {
 	}
 }
 
+func TestParseLogMessageNormalizesJournalSource(t *testing.T) {
+	cfg := &types.Config{}
+	cfg.Input.EnableJournal = true
+
+	event := parseLogMessage(
+		ingest.LogLine{
+			Source:  " MySQL ",
+			Content: "mysqld[1234]: Access denied for user 'root'@'203.0.113.26' (using password: YES)",
+		},
+		cfg,
+		parser.NewSSHParser(),
+		parser.NewHTTPParser("web_server"),
+		parser.NewSyslogParser(),
+	)
+
+	if event == nil {
+		t.Fatal("expected normalized journald source to parse")
+	}
+	if event.Source != "mysql" {
+		t.Fatalf("Source = %q", event.Source)
+	}
+	if event.IP != "203.0.113.26" {
+		t.Fatalf("IP = %q", event.IP)
+	}
+}
+
 func TestParseLogMessageIgnoresJournalSourcesWhenDisabled(t *testing.T) {
 	cfg := &types.Config{}
 
