@@ -45,6 +45,46 @@ func TestSSHParser_Parse_StandaloneInvalidUser(t *testing.T) {
 	}
 }
 
+func TestSSHParser_Parse_FailedPublickey(t *testing.T) {
+	parser := NewSSHParser()
+
+	line := "Failed publickey for deploy from 203.0.113.43 port 51234 ssh2"
+	evt := parser.Parse(line)
+
+	if evt == nil {
+		t.Fatal("Expected parsed event, got nil")
+	}
+	if evt.Type != "login_failed" {
+		t.Errorf("Expected type 'login_failed', got '%s'", evt.Type)
+	}
+	if evt.User != "deploy" {
+		t.Errorf("Expected user 'deploy', got '%s'", evt.User)
+	}
+	if evt.IP != "203.0.113.43" {
+		t.Errorf("Expected IP '203.0.113.43', got '%s'", evt.IP)
+	}
+}
+
+func TestSSHParser_Parse_FailedPublickeyInvalidUser(t *testing.T) {
+	parser := NewSSHParser()
+
+	line := "Failed publickey for invalid user oracle from 203.0.113.44 port 51235 ssh2"
+	evt := parser.Parse(line)
+
+	if evt == nil {
+		t.Fatal("Expected parsed event, got nil")
+	}
+	if evt.Type != "login_failed" {
+		t.Errorf("Expected type 'login_failed', got '%s'", evt.Type)
+	}
+	if evt.User != "oracle" {
+		t.Errorf("Expected user 'oracle', got '%s'", evt.User)
+	}
+	if evt.IP != "203.0.113.44" {
+		t.Errorf("Expected IP '203.0.113.44', got '%s'", evt.IP)
+	}
+}
+
 func TestSSHParser_Parse_Accepted(t *testing.T) {
 	parser := NewSSHParser()
 
@@ -59,6 +99,26 @@ func TestSSHParser_Parse_Accepted(t *testing.T) {
 	}
 	if evt.User != "root" {
 		t.Errorf("Expected user 'root', got '%s'", evt.User)
+	}
+}
+
+func TestSSHParser_Parse_AcceptedKeyboardInteractive(t *testing.T) {
+	parser := NewSSHParser()
+
+	line := "Accepted keyboard-interactive/pam for admin from 10.0.0.6 port 22 ssh2"
+	evt := parser.Parse(line)
+
+	if evt == nil {
+		t.Fatal("Expected parsed event, got nil")
+	}
+	if evt.Type != "login_success" {
+		t.Errorf("Expected type 'login_success', got '%s'", evt.Type)
+	}
+	if evt.User != "admin" {
+		t.Errorf("Expected user 'admin', got '%s'", evt.User)
+	}
+	if evt.IP != "10.0.0.6" {
+		t.Errorf("Expected IP '10.0.0.6', got '%s'", evt.IP)
 	}
 }
 
