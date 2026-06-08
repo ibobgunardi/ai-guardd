@@ -93,6 +93,48 @@ func TestEngine_ProcessEvent_CustomRule(t *testing.T) {
 	}
 }
 
+func TestNewEngineCopiesRules(t *testing.T) {
+	rules := []types.DetectionRule{
+		{
+			Name:      "custom_ssh",
+			Type:      "threshold",
+			Metric:    "failed_logins",
+			Threshold: 2,
+			Action:    "ban_ip",
+			Duration:  "30m",
+			Risk:      types.RiskMedium,
+			Summary:   "Custom SSH Alert",
+		},
+	}
+
+	engine := NewEngine(rules)
+	rules[0].Threshold = 1
+	rules[0].Summary = "mutated"
+
+	first := engine.ProcessEvent(&parser.ParsedEvent{
+		Type:   "login_failed",
+		IP:     "198.51.100.30",
+		User:   "deploy",
+		Source: "ssh_auth",
+	})
+	if first != nil {
+		t.Fatalf("expected copied threshold to require another event, got %#v", first)
+	}
+
+	second := engine.ProcessEvent(&parser.ParsedEvent{
+		Type:   "login_failed",
+		IP:     "198.51.100.30",
+		User:   "deploy",
+		Source: "ssh_auth",
+	})
+	if second == nil {
+		t.Fatal("expected alert after original threshold")
+	}
+	if second.Summary != "Custom SSH Alert" {
+		t.Fatalf("Summary = %q", second.Summary)
+	}
+}
+
 func TestEngine_ProcessEvent_IgnoresZeroThresholdRule(t *testing.T) {
 	engine := NewEngine([]types.DetectionRule{
 		{
