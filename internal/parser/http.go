@@ -3,6 +3,7 @@ package parser
 import (
 	"regexp"
 	"strconv"
+	"time"
 )
 
 // HTTPParser parses Nginx/Apache Combined Log Format
@@ -11,6 +12,8 @@ type HTTPParser struct {
 	re     *regexp.Regexp
 	source string
 }
+
+const httpTimestampLayout = "02/Jan/2006:15:04:05 -0700"
 
 func NewHTTPParser(sourceLabel string) *HTTPParser {
 	// Flexible regex for CLF/Combined
@@ -37,6 +40,7 @@ func (p *HTTPParser) Parse(line string) *ParsedEvent {
 	method := matches[4]
 	url := matches[5]
 	statusStr := matches[7]
+	timestamp, _ := time.Parse(httpTimestampLayout, matches[3])
 	ua := ""
 	if len(matches) > 10 {
 		ua = matches[10]
@@ -46,6 +50,7 @@ func (p *HTTPParser) Parse(line string) *ParsedEvent {
 
 	return &ParsedEvent{
 		Source:     p.source,
+		Timestamp:  timestamp,
 		Type:       "http_request",
 		IP:         ip,
 		Method:     method,

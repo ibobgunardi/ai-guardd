@@ -1,6 +1,9 @@
 package parser
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestHTTPParserParseCombinedLog(t *testing.T) {
 	parser := NewHTTPParser("nginx")
@@ -30,6 +33,10 @@ func TestHTTPParserParseCombinedLog(t *testing.T) {
 	}
 	if evt.UserAgent != "curl/8.0" {
 		t.Fatalf("UserAgent = %q", evt.UserAgent)
+	}
+	wantTimestamp := time.Date(2026, time.June, 8, 3, 14, 15, 0, time.UTC)
+	if !evt.Timestamp.Equal(wantTimestamp) {
+		t.Fatalf("Timestamp = %s, want %s", evt.Timestamp, wantTimestamp)
 	}
 }
 
