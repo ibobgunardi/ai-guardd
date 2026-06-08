@@ -11,6 +11,7 @@ import (
 	"ai-guardd/internal/metrics"
 	"ai-guardd/internal/parser"
 	"ai-guardd/internal/state"
+	"ai-guardd/internal/types"
 	"flag"
 	"fmt"
 	"log"
@@ -262,7 +263,7 @@ func runCommand(args []string) {
 					// Sanitize output to prevent terminal injection
 					safeSummary := sanitize(alert.Summary)
 					safeExplanation := sanitize(alert.Explanation)
-					safeAction := sanitize(fmt.Sprintf("%s %s (%s)", alert.SuggestedAction.Type, alert.SuggestedAction.Target, alert.SuggestedAction.Duration))
+					safeAction := sanitize(formatSuggestedAction(alert.SuggestedAction))
 
 					fmt.Printf("\n[ALERT] Risk: %s | %s\n", alert.Risk, safeSummary)
 					fmt.Printf("Explain: %s\n", safeExplanation)
@@ -324,6 +325,13 @@ func sanitize(s string) string {
 		}
 	}
 	return builder.String()
+}
+
+func formatSuggestedAction(action *types.SuggestedAction) string {
+	if action == nil {
+		return "none"
+	}
+	return fmt.Sprintf("%s %s (%s)", action.Type, action.Target, action.Duration)
 }
 
 func auditCommand(args []string) {
