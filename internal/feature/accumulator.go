@@ -116,8 +116,7 @@ func (a *Accumulator) GetFeatures(ip string) *FeatureVector {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if feat, ok := a.features[ip]; ok {
-		// Return copy to be safe? For now pointer is okay if we are careful
-		return feat
+		return cloneFeatureVector(feat)
 	}
 	return nil
 }

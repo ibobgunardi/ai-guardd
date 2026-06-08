@@ -109,6 +109,23 @@ func TestAccumulator_GetAllReturnsIndependentCopy(t *testing.T) {
 	}
 }
 
+func TestAccumulator_GetFeaturesReturnsIndependentCopy(t *testing.T) {
+	acc := NewAccumulator(1 * time.Hour)
+
+	acc.AddFailure("1.1.1.1", "admin")
+	feat := acc.GetFeatures("1.1.1.1")
+	feat.FailedLogins = 99
+	feat.DistinctUsers["mutated"] = true
+
+	got := acc.GetFeatures("1.1.1.1")
+	if got.FailedLogins != 1 {
+		t.Fatalf("FailedLogins = %d, want 1", got.FailedLogins)
+	}
+	if got.DistinctUsers["mutated"] {
+		t.Fatal("GetFeatures result should not share distinct user map with accumulator")
+	}
+}
+
 func TestAccumulator_ReplaceAllCopiesInputState(t *testing.T) {
 	acc := NewAccumulator(1 * time.Hour)
 	input := map[string]*FeatureVector{
