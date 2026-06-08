@@ -63,9 +63,21 @@ func (s *Server) Start() error {
 
 // handleDashboard renders the main dashboard page
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	events, _ := s.store.ListEvents(defaultEventLimit)
-	stats, _ := s.store.GetStats()
-	server, _ := s.store.GetServerInfo()
+	events, err := s.store.ListEvents(defaultEventLimit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	stats, err := s.store.GetStats()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	server, err := s.store.GetServerInfo()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	data := map[string]interface{}{
 		"Events": events,
@@ -73,7 +85,9 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		"Server": server,
 	}
 
-	s.templates.ExecuteTemplate(w, "dashboard.html", data)
+	if err := s.templates.ExecuteTemplate(w, "dashboard.html", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 // handleAPIEvents returns events as JSON
