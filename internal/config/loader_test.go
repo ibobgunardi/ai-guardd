@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -86,6 +87,36 @@ dashboard:
 	}
 	if cfg.Dashboard.Port != ":9091" {
 		t.Fatalf("Dashboard.Port = %q", cfg.Dashboard.Port)
+	}
+}
+
+func TestLoadConfigRejectsUnknownTopLevelFields(t *testing.T) {
+	path := writeConfig(t, `
+detction:
+  active_defense: true
+`)
+
+	_, err := LoadConfig(path)
+	if err == nil {
+		t.Fatal("expected unknown top-level field error")
+	}
+	if !strings.Contains(err.Error(), "field detction not found") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestLoadConfigRejectsUnknownNestedFields(t *testing.T) {
+	path := writeConfig(t, `
+detection:
+  active_defence: true
+`)
+
+	_, err := LoadConfig(path)
+	if err == nil {
+		t.Fatal("expected unknown nested field error")
+	}
+	if !strings.Contains(err.Error(), "field active_defence not found") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

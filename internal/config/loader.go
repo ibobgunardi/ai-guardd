@@ -19,6 +19,7 @@ func LoadConfig(path string) (*types.Config, error) {
 
 	var cfg types.Config
 	decoder := yaml.NewDecoder(f)
+	decoder.KnownFields(true)
 	if err := decoder.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to decode config: %w", err)
 	}
