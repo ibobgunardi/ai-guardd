@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ai-guardd/internal/types"
 	"os"
 	"path/filepath"
 	"testing"
@@ -59,6 +60,27 @@ func TestSanitizeKeepsNewlineAndTab(t *testing.T) {
 
 	if got != input {
 		t.Fatalf("sanitize() = %q, want %q", got, input)
+	}
+}
+
+func TestFormatSuggestedAction(t *testing.T) {
+	action := &types.SuggestedAction{
+		Type:     "ban_ip",
+		Target:   "203.0.113.10",
+		Duration: "1h",
+	}
+
+	got := formatSuggestedAction(action)
+	want := "ban_ip 203.0.113.10 (1h)"
+	if got != want {
+		t.Fatalf("formatSuggestedAction() = %q, want %q", got, want)
+	}
+}
+
+func TestFormatSuggestedActionHandlesNil(t *testing.T) {
+	got := formatSuggestedAction(nil)
+	if got != "none" {
+		t.Fatalf("formatSuggestedAction(nil) = %q", got)
 	}
 }
 
