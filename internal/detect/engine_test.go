@@ -93,6 +93,59 @@ func TestEngine_ProcessEvent_CustomRule(t *testing.T) {
 	}
 }
 
+func TestEngine_ProcessEvent_IgnoresZeroThresholdRule(t *testing.T) {
+	engine := NewEngine([]types.DetectionRule{
+		{
+			Name:      "invalid_threshold",
+			Type:      "threshold",
+			Metric:    "failed_logins",
+			Threshold: 0,
+			Action:    "ban_ip",
+			Duration:  "30m",
+			Risk:      types.RiskHigh,
+			Summary:   "Invalid threshold",
+		},
+	})
+
+	alert := engine.ProcessEvent(&parser.ParsedEvent{
+		Type:   "login_failed",
+		IP:     "198.51.100.10",
+		User:   "deploy",
+		Source: "ssh_auth",
+	})
+
+	if alert != nil {
+		t.Fatalf("expected zero-threshold rule to be ignored, got %#v", alert)
+	}
+}
+
+func TestEngine_ProcessEvent_IgnoresNegativeThresholdRule(t *testing.T) {
+	engine := NewEngine([]types.DetectionRule{
+		{
+			Name:      "invalid_threshold",
+			Type:      "threshold",
+			Metric:    "http_404_count",
+			Threshold: -1,
+			Action:    "ban_ip",
+			Duration:  "30m",
+			Risk:      types.RiskMedium,
+			Summary:   "Invalid threshold",
+		},
+	})
+
+	alert := engine.ProcessEvent(&parser.ParsedEvent{
+		Type:       "http_request",
+		IP:         "198.51.100.11",
+		URL:        "/missing",
+		StatusCode: 404,
+		Source:     "nginx",
+	})
+
+	if alert != nil {
+		t.Fatalf("expected negative-threshold rule to be ignored, got %#v", alert)
+	}
+}
+
 func TestEngine_ProcessEvent_RootLogin(t *testing.T) {
 	engine := NewEngine(nil)
 

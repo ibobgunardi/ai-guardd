@@ -63,6 +63,9 @@ func (e *Engine) checkThresholds(feat *feature.FeatureVector, timestamp time.Tim
 		if rule.Type != "threshold" {
 			continue
 		}
+		if rule.Threshold <= 0 {
+			continue
+		}
 
 		var currentValue int
 		var evidence []types.Evidence
