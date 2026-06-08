@@ -111,6 +111,10 @@ func (e *Engine) checkThresholds(feat *feature.FeatureVector) *types.Event {
 
 // ProcessEvent applies rules to a new event
 func (e *Engine) ProcessEvent(evt *parser.ParsedEvent) *types.Event {
+	if evt == nil {
+		return nil
+	}
+
 	// 1. Suspicious Success (Immediate Rule)
 	if evt.Type == "login_success" {
 		if evt.User == "root" {

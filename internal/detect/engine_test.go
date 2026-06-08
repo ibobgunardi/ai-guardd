@@ -6,6 +6,14 @@ import (
 	"testing"
 )
 
+func TestEngine_ProcessEvent_NilEvent(t *testing.T) {
+	engine := NewEngine(nil)
+
+	if alert := engine.ProcessEvent(nil); alert != nil {
+		t.Fatalf("ProcessEvent(nil) = %#v", alert)
+	}
+}
+
 func TestEngine_ProcessEvent_SSHBruteForce(t *testing.T) {
 	// Create engine with default rules
 	engine := NewEngine(nil)
