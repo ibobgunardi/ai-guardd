@@ -90,6 +90,36 @@ dashboard:
 	}
 }
 
+func TestLoadConfigNormalizesNumericDashboardPort(t *testing.T) {
+	path := writeConfig(t, `
+dashboard:
+  port: " 9092 "
+`)
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+	if cfg.Dashboard.Port != ":9092" {
+		t.Fatalf("Dashboard.Port = %q", cfg.Dashboard.Port)
+	}
+}
+
+func TestLoadConfigKeepsDashboardListenAddress(t *testing.T) {
+	path := writeConfig(t, `
+dashboard:
+  port: "127.0.0.1:9093"
+`)
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+	if cfg.Dashboard.Port != "127.0.0.1:9093" {
+		t.Fatalf("Dashboard.Port = %q", cfg.Dashboard.Port)
+	}
+}
+
 func TestLoadConfigRejectsUnknownTopLevelFields(t *testing.T) {
 	path := writeConfig(t, `
 detction:
