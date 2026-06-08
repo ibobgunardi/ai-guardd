@@ -30,7 +30,7 @@ type Broker struct {
 func NewBroker(activeDefense bool, allowlist []string, discordWebhook string, executorSocket string) *Broker {
 	return &Broker{
 		ActiveDefense:  activeDefense,
-		Allowlist:      allowlist,
+		Allowlist:      cloneStringSlice(allowlist),
 		DiscordWebhook: discordWebhook,
 		ExecutorSocket: executorSocket,
 		runCommand:     runSystemCommand,
@@ -42,7 +42,7 @@ func (b *Broker) UpdateConfig(activeDefense bool, allowlist []string, discordWeb
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.ActiveDefense = activeDefense
-	b.Allowlist = allowlist
+	b.Allowlist = cloneStringSlice(allowlist)
 	b.DiscordWebhook = discordWebhook
 	b.ExecutorSocket = executorSocket
 	log.Println("[CONFIG] Broker configuration updated dynamically")
@@ -60,7 +60,7 @@ func (b *Broker) Execute(evt *types.Event) error {
 	b.mu.RLock()
 	webhook := b.DiscordWebhook
 	activeDefense := b.ActiveDefense
-	allowlist := b.Allowlist
+	allowlist := cloneStringSlice(b.Allowlist)
 	b.mu.RUnlock()
 
 	if webhook != "" {
@@ -201,6 +201,13 @@ func (b *Broker) sendToExecutor(action, target string) error {
 
 func isValidIP(ip string) bool {
 	return net.ParseIP(ip) != nil
+}
+
+func cloneStringSlice(src []string) []string {
+	if src == nil {
+		return nil
+	}
+	return append([]string(nil), src...)
 }
 
 func isAllowedTarget(target string, allowlist []string) bool {

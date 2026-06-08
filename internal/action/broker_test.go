@@ -103,6 +103,47 @@ func TestExecuteAllowlistBlocksIPTables(t *testing.T) {
 	}
 }
 
+func TestNewBrokerCopiesAllowlist(t *testing.T) {
+	allowlist := []string{"203.0.113.0/24"}
+	broker := NewBroker(true, allowlist, "", "")
+	allowlist[0] = "198.51.100.0/24"
+
+	called := false
+	broker.runCommand = func(name string, args ...string) error {
+		called = true
+		return nil
+	}
+
+	err := broker.Execute(banEvent("203.0.113.40"))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if called {
+		t.Fatal("mutating caller allowlist should not unblock target")
+	}
+}
+
+func TestUpdateConfigCopiesAllowlist(t *testing.T) {
+	broker := NewBroker(true, nil, "", "")
+	allowlist := []string{"203.0.113.0/24"}
+	broker.UpdateConfig(true, allowlist, "", "")
+	allowlist[0] = "198.51.100.0/24"
+
+	called := false
+	broker.runCommand = func(name string, args ...string) error {
+		called = true
+		return nil
+	}
+
+	err := broker.Execute(banEvent("203.0.113.41"))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if called {
+		t.Fatal("mutating updated allowlist should not unblock target")
+	}
+}
+
 func TestExecuteReturnsIPTablesError(t *testing.T) {
 	broker := NewBroker(true, nil, "", "")
 	broker.runCommand = func(name string, args ...string) error {
