@@ -20,7 +20,7 @@ func NewHTTPParser(sourceLabel string) *HTTPParser {
 		sourceLabel = "web_server"
 	}
 	return &HTTPParser{
-		re:     regexp.MustCompile(`^(\S+) \S+ (\S+) \[([^\]]+)\] "(\S+) (\S+) ([^"]+)" (\d+) (\d+|-) "([^"]*)" "([^"]*)"`),
+		re:     regexp.MustCompile(`^(\S+) \S+ (\S+) \[([^\]]+)\] "(\S+) (\S+) ([^"]+)" (\d+) (\d+|-)(?: "([^"]*)" "([^"]*)")?$`),
 		source: sourceLabel,
 	}
 }
@@ -37,7 +37,10 @@ func (p *HTTPParser) Parse(line string) *ParsedEvent {
 	method := matches[4]
 	url := matches[5]
 	statusStr := matches[7]
-	ua := matches[10]
+	ua := ""
+	if len(matches) > 10 {
+		ua = matches[10]
+	}
 
 	statusCode, _ := strconv.Atoi(statusStr)
 
