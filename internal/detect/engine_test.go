@@ -112,6 +112,88 @@ func TestEngine_ProcessEvent_RootLogin(t *testing.T) {
 	}
 }
 
+func TestEngine_ProcessEvent_DatabaseBruteForceKeepsIPBan(t *testing.T) {
+	engine := NewEngine([]types.DetectionRule{
+		{
+			Name:      "database_bruteforce",
+			Type:      "threshold",
+			Metric:    "failed_logins",
+			Threshold: 1,
+			Action:    "ban_ip",
+			Duration:  "30m",
+			Risk:      types.RiskHigh,
+			Summary:   "Login Failures",
+		},
+	})
+
+	alert := engine.ProcessEvent(&parser.ParsedEvent{
+		Type:   "login_failed",
+		IP:     "203.0.113.90",
+		User:   "root",
+		Source: "mysql",
+	})
+
+	if alert == nil {
+		t.Fatal("Expected database brute-force alert, got nil")
+	}
+	if alert.Source != "mysql" {
+		t.Fatalf("Source = %q", alert.Source)
+	}
+	if alert.Summary != "Database Brute Force Detected" {
+		t.Fatalf("Summary = %q", alert.Summary)
+	}
+	if alert.SuggestedAction == nil {
+		t.Fatal("Expected suggested action")
+	}
+	if alert.SuggestedAction.Type != "ban_ip" {
+		t.Fatalf("Action type = %q", alert.SuggestedAction.Type)
+	}
+	if alert.SuggestedAction.Target != "203.0.113.90" {
+		t.Fatalf("Action target = %q", alert.SuggestedAction.Target)
+	}
+}
+
+func TestEngine_ProcessEvent_DatabaseBruteForceNotifiesForHost(t *testing.T) {
+	engine := NewEngine([]types.DetectionRule{
+		{
+			Name:      "database_bruteforce",
+			Type:      "threshold",
+			Metric:    "failed_logins",
+			Threshold: 1,
+			Action:    "ban_ip",
+			Duration:  "30m",
+			Risk:      types.RiskHigh,
+			Summary:   "Login Failures",
+		},
+	})
+
+	alert := engine.ProcessEvent(&parser.ParsedEvent{
+		Type:   "login_failed",
+		IP:     "localhost",
+		User:   "root",
+		Source: "mysql",
+	})
+
+	if alert == nil {
+		t.Fatal("Expected database brute-force alert, got nil")
+	}
+	if alert.Source != "mysql" {
+		t.Fatalf("Source = %q", alert.Source)
+	}
+	if alert.SuggestedAction == nil {
+		t.Fatal("Expected suggested action")
+	}
+	if alert.SuggestedAction.Type != "notify_admin" {
+		t.Fatalf("Action type = %q", alert.SuggestedAction.Type)
+	}
+	if alert.SuggestedAction.Target != "admin" {
+		t.Fatalf("Action target = %q", alert.SuggestedAction.Target)
+	}
+	if alert.SuggestedAction.Duration != "0" {
+		t.Fatalf("Action duration = %q", alert.SuggestedAction.Duration)
+	}
+}
+
 func TestEngine_ProcessEvent_PrivEscalationFailure(t *testing.T) {
 	engine := NewEngine(nil)
 
