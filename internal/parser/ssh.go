@@ -2,7 +2,12 @@ package parser
 
 import (
 	"regexp"
+	"time"
 )
+
+var syslogTimestampRE = regexp.MustCompile(`^([A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+`)
+
+const syslogTimestampLayout = "Jan _2 15:04:05"
 
 // SSHParser extracts events from sshd logs
 type SSHParser struct {
@@ -29,13 +34,10 @@ func NewSSHParser() *SSHParser {
 
 // Parse implements the Parser interface
 func (p *SSHParser) Parse(line string) *ParsedEvent {
-	// TODO: Parse timestamp from syslog header (Dec 10 12:34:56 ...)
-	// For now, we assume "now" or let the detector use the ingest timestamp
-	// But sticking to the "ParsedEvent" structure:
-
 	evt := &ParsedEvent{
-		Source: "ssh",
-		Raw:    line,
+		Source:    "ssh",
+		Timestamp: parseSyslogTimestamp(line, time.Now()),
+		Raw:       line,
 	}
 
 	// Check for "Invalid user" first (more specific)
@@ -71,4 +73,22 @@ func (p *SSHParser) Parse(line string) *ParsedEvent {
 	}
 
 	return nil
+}
+
+func parseSyslogTimestamp(line string, now time.Time) time.Time {
+	matches := syslogTimestampRE.FindStringSubmatch(line)
+	if len(matches) < 2 {
+		return time.Time{}
+	}
+
+	parsed, err := time.ParseInLocation(syslogTimestampLayout, matches[1], now.Location())
+	if err != nil {
+		return time.Time{}
+	}
+
+	timestamp := time.Date(now.Year(), parsed.Month(), parsed.Day(), parsed.Hour(), parsed.Minute(), parsed.Second(), 0, now.Location())
+	if timestamp.After(now.Add(30 * 24 * time.Hour)) {
+		timestamp = timestamp.AddDate(-1, 0, 0)
+	}
+	return timestamp
 }

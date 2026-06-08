@@ -2,6 +2,7 @@ package parser
 
 import (
 	"testing"
+	"time"
 )
 
 func TestSSHParser_Parse_Success(t *testing.T) {
@@ -119,6 +120,36 @@ func TestSSHParser_Parse_AcceptedKeyboardInteractive(t *testing.T) {
 	}
 	if evt.IP != "10.0.0.6" {
 		t.Errorf("Expected IP '10.0.0.6', got '%s'", evt.IP)
+	}
+}
+
+func TestSSHParser_Parse_SyslogTimestamp(t *testing.T) {
+	parser := NewSSHParser()
+	now := time.Now()
+	prefix := now.Format(syslogTimestampLayout)
+	line := prefix + " host sshd[1234]: Failed password for deploy from 203.0.113.45 port 51236 ssh2"
+
+	evt := parser.Parse(line)
+
+	if evt == nil {
+		t.Fatal("Expected parsed event, got nil")
+	}
+	want := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, now.Location())
+	if !evt.Timestamp.Equal(want) {
+		t.Fatalf("Timestamp = %s, want %s", evt.Timestamp, want)
+	}
+}
+
+func TestParseSyslogTimestampUsesPreviousYearForFutureDate(t *testing.T) {
+	location := time.FixedZone("test", 0)
+	now := time.Date(2026, time.January, 2, 3, 0, 0, 0, location)
+	line := "Dec 31 23:59:59 host sshd[1234]: Failed password for root from 203.0.113.46 port 51237 ssh2"
+
+	got := parseSyslogTimestamp(line, now)
+
+	want := time.Date(2025, time.December, 31, 23, 59, 59, 0, location)
+	if !got.Equal(want) {
+		t.Fatalf("parseSyslogTimestamp() = %s, want %s", got, want)
 	}
 }
 
