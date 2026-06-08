@@ -103,3 +103,32 @@ func TestEngine_ProcessEvent_RootLogin(t *testing.T) {
 		t.Errorf("Expected Suspicious Root Login, got %s", alert.Summary)
 	}
 }
+
+func TestEngine_ProcessEvent_PrivEscalationFailure(t *testing.T) {
+	engine := NewEngine(nil)
+
+	evt := &parser.ParsedEvent{
+		Type:   "priv_escalation_fail",
+		User:   "deploy",
+		Source: "syslog_sudo",
+		Raw:    "sudo: pam_unix(sudo:auth): authentication failure; user=deploy",
+	}
+
+	alert := engine.ProcessEvent(evt)
+
+	if alert == nil {
+		t.Fatal("Expected privilege escalation alert, got nil")
+	}
+	if alert.Summary != "Privilege Escalation Failure" {
+		t.Errorf("Summary = %q", alert.Summary)
+	}
+	if alert.Source != "syslog_sudo" {
+		t.Errorf("Source = %q", alert.Source)
+	}
+	if alert.Risk != types.RiskMedium {
+		t.Errorf("Risk = %s", alert.Risk)
+	}
+	if alert.SuggestedAction == nil || alert.SuggestedAction.Type != "notify_admin" {
+		t.Fatalf("SuggestedAction = %#v", alert.SuggestedAction)
+	}
+}

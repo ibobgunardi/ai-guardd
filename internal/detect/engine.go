@@ -152,6 +152,28 @@ func (e *Engine) ProcessEvent(evt *parser.ParsedEvent) *types.Event {
 		return event
 	}
 
+	if evt.Type == "priv_escalation_fail" {
+		return &types.Event{
+			ID:          fmt.Sprintf("evt_%d_priv_escalation", time.Now().UnixNano()),
+			Timestamp:   time.Now(),
+			Source:      evt.Source,
+			Risk:        types.RiskMedium,
+			Confidence:  0.8,
+			Summary:     "Privilege Escalation Failure",
+			Explanation: fmt.Sprintf("User %s failed a privileged authentication attempt.", evt.User),
+			Evidence: []types.Evidence{
+				{Type: "user", Value: evt.User},
+				{Type: "source", Value: evt.Source},
+			},
+			SuggestedAction: &types.SuggestedAction{
+				Type:     "notify_admin",
+				Target:   "admin",
+				Duration: "0",
+			},
+			Mode: "advisory",
+		}
+	}
+
 	if evt.Type == "http_request" && evt.StatusCode == 404 {
 		feat := e.features.AddHttp404(evt.IP, evt.URL)
 		return e.checkThresholds(feat)
