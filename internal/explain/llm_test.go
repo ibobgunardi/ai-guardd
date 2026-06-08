@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -48,5 +49,30 @@ func TestLLMExplainer_Explain(t *testing.T) {
 	expected := "AI-generated explanation: This IP is suspicious."
 	if evt.Explanation != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, evt.Explanation)
+	}
+}
+
+func TestLLMExplainerRejectsEmptyExplanation(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := OllamaResponse{Response: "   "}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer mockServer.Close()
+
+	explainer := NewLLMExplainer(mockServer.URL, "test-model")
+	evt := &types.Event{
+		Source:      "ssh",
+		Explanation: "existing detector explanation",
+	}
+
+	err := explainer.Explain(evt)
+	if err == nil {
+		t.Fatal("expected empty explanation error")
+	}
+	if !strings.Contains(err.Error(), "empty explanation") {
+		t.Fatalf("error = %v", err)
+	}
+	if evt.Explanation != "existing detector explanation" {
+		t.Fatalf("Explanation = %q", evt.Explanation)
 	}
 }

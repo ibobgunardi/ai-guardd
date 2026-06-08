@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -74,8 +75,13 @@ func (e *LLMExplainer) Explain(event *types.Event) error {
 		return fmt.Errorf("failed to decode llm response: %w", err)
 	}
 
+	explanation := strings.TrimSpace(llmResp.Response)
+	if explanation == "" {
+		return fmt.Errorf("llm returned empty explanation")
+	}
+
 	// Update the event with the generated explanation
-	event.Explanation = llmResp.Response
+	event.Explanation = explanation
 	return nil
 }
 
