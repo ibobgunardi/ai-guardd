@@ -154,9 +154,9 @@ func (b *Broker) buildCommand(act *types.SuggestedAction) string {
 
 	switch act.Type {
 	case "ban_ip":
-		// Example: iptables -A INPUT -s 1.2.3.4 -j DROP
+		// Example: iptables/ip6tables -A INPUT -s 1.2.3.4 -j DROP
 		// Target is now guaranteed to be a valid IP, so safe to inject.
-		return fmt.Sprintf("iptables -A INPUT -s %s -j DROP # Duration: %s", act.Target, act.Duration)
+		return fmt.Sprintf("%s -A INPUT -s %s -j DROP # Duration: %s", firewallCommand(act.Target), act.Target, act.Duration)
 	default:
 		return ""
 	}
@@ -170,7 +170,7 @@ func (b *Broker) executeCommand(act *types.SuggestedAction) error {
 
 	switch act.Type {
 	case "ban_ip":
-		if err := run("iptables", "-A", "INPUT", "-s", act.Target, "-j", "DROP"); err != nil {
+		if err := run(firewallCommand(act.Target), "-A", "INPUT", "-s", act.Target, "-j", "DROP"); err != nil {
 			return fmt.Errorf("failed to ban IP %s: %w", act.Target, err)
 		}
 		return nil
@@ -201,6 +201,14 @@ func (b *Broker) sendToExecutor(action, target string) error {
 
 func isValidIP(ip string) bool {
 	return net.ParseIP(ip) != nil
+}
+
+func firewallCommand(ip string) string {
+	parsed := net.ParseIP(ip)
+	if parsed != nil && parsed.To4() == nil {
+		return "ip6tables"
+	}
+	return "iptables"
 }
 
 func cloneStringSlice(src []string) []string {

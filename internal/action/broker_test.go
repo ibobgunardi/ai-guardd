@@ -69,6 +69,30 @@ func TestExecuteActiveDefenseRunsIPTablesWithoutExecutor(t *testing.T) {
 	}
 }
 
+func TestExecuteActiveDefenseUsesIP6TablesForIPv6(t *testing.T) {
+	broker := NewBroker(true, nil, "", "")
+	var gotName string
+	var gotArgs []string
+	broker.runCommand = func(name string, args ...string) error {
+		gotName = name
+		gotArgs = append([]string(nil), args...)
+		return nil
+	}
+
+	err := broker.Execute(banEvent("2001:db8::10"))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+
+	if gotName != "ip6tables" {
+		t.Fatalf("command name = %q", gotName)
+	}
+	wantArgs := []string{"-A", "INPUT", "-s", "2001:db8::10", "-j", "DROP"}
+	if !reflect.DeepEqual(gotArgs, wantArgs) {
+		t.Fatalf("command args = %#v, want %#v", gotArgs, wantArgs)
+	}
+}
+
 func TestExecuteSafeModeDoesNotRunIPTables(t *testing.T) {
 	broker := NewBroker(false, nil, "", "")
 	called := false

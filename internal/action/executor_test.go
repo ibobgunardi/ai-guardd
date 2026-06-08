@@ -66,6 +66,25 @@ func TestExecutorRunsValidCommands(t *testing.T) {
 	}
 }
 
+func TestExecutorUsesIP6TablesForIPv6Commands(t *testing.T) {
+	executor := NewExecutor("")
+	var calls []string
+	executor.runCommand = func(name string, args ...string) error {
+		calls = append(calls, fmt.Sprintf("%s %v", name, args))
+		return nil
+	}
+
+	handleExecutorInput(t, executor, "ban 2001:db8::10\nunban 2001:db8::10\n")
+
+	want := []string{
+		"ip6tables [-A INPUT -s 2001:db8::10 -j DROP]",
+		"ip6tables [-D INPUT -s 2001:db8::10 -j DROP]",
+	}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("calls = %#v, want %#v", calls, want)
+	}
+}
+
 func TestExecutorRejectsMalformedCommands(t *testing.T) {
 	executor := NewExecutor("")
 	called := false
