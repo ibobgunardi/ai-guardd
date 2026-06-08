@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 )
 
@@ -77,7 +78,7 @@ func (j *JournalReader) Start() (<-chan LogLine, error) {
 
 			out <- LogLine{
 				Source:    "journald",
-				Timestamp: time.Now().Unix(), // Parsing __REALTIME_TIMESTAMP is complex (microseconds), using Now() for MVP
+				Timestamp: journalTimestamp(entry.Timestamp, time.Now()),
 				Content:   content,
 			}
 		}
@@ -87,6 +88,14 @@ func (j *JournalReader) Start() (<-chan LogLine, error) {
 	}()
 
 	return out, nil
+}
+
+func journalTimestamp(raw string, fallback time.Time) int64 {
+	micros, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || micros < 0 {
+		return fallback.Unix()
+	}
+	return micros / int64(time.Second/time.Microsecond)
 }
 
 func (j *JournalReader) Stop() error {
