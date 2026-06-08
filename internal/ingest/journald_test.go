@@ -27,3 +27,33 @@ func TestJournalTimestampUsesFallbackForInvalidValues(t *testing.T) {
 		})
 	}
 }
+
+func TestJournalSourceUsesSyslogIdentifier(t *testing.T) {
+	got := journalSource(JournalEntry{
+		SyslogIdentifier: "sudo",
+		Comm:             "ignored",
+	})
+
+	if got != "sudo" {
+		t.Fatalf("journalSource() = %q, want sudo", got)
+	}
+}
+
+func TestJournalSourceFallsBackToComm(t *testing.T) {
+	got := journalSource(JournalEntry{Comm: "mysqld"})
+
+	if got != "mysqld" {
+		t.Fatalf("journalSource() = %q, want mysqld", got)
+	}
+}
+
+func TestJournalSourceUsesGenericFallback(t *testing.T) {
+	got := journalSource(JournalEntry{
+		SyslogIdentifier: " ",
+		Comm:             "\t",
+	})
+
+	if got != "journald" {
+		t.Fatalf("journalSource() = %q, want journald", got)
+	}
+}
