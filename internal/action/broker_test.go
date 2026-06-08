@@ -1,7 +1,10 @@
 package action
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
 	"reflect"
 	"strings"
 	"testing"
@@ -196,6 +199,71 @@ func TestExecuteIgnoresUnsupportedActionWithExecutor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
+}
+
+func TestSendDiscordAlertUsesProvidedWebhook(t *testing.T) {
+	var gotURL string
+	var gotContent string
+	broker := NewBroker(false, nil, "https://example.invalid/old", "")
+	broker.httpClient = &http.Client{
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotURL = r.URL.String()
+			defer r.Body.Close()
+
+			var payload struct {
+				Content string `json:"content"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				return nil, err
+			}
+			gotContent = payload.Content
+			return &http.Response{
+				StatusCode: http.StatusNoContent,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+	broker.UpdateConfig(false, nil, "https://example.invalid/new", "")
+
+	broker.sendDiscordAlert(banEvent("203.0.113.50"), "https://example.invalid/snapshot")
+
+	if gotURL != "https://example.invalid/snapshot" {
+		t.Fatalf("webhook URL = %q", gotURL)
+	}
+	if !strings.Contains(gotContent, "test alert") {
+		t.Fatalf("content = %q", gotContent)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestSendDiscordAlertBuildsJSONPayload(t *testing.T) {
+	broker := NewBroker(false, nil, "", "")
+	broker.httpClient = &http.Client{
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			var payload struct {
+				Content string `json:"content"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				return nil, err
+			}
+			if !strings.Contains(payload.Content, "203.0.113.51") {
+				t.Fatalf("content = %q", payload.Content)
+			}
+			return &http.Response{
+				StatusCode: http.StatusNoContent,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	broker.sendDiscordAlert(banEvent("203.0.113.51"), "https://example.invalid/webhook")
 }
 
 func banEvent(target string) *types.Event {
