@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -74,7 +75,21 @@ func validateConfig(cfg *types.Config) {
 	if cfg.Output.AuditLogPath == "" {
 		cfg.Output.AuditLogPath = "audit.log"
 	}
+	cfg.Dashboard.Port = normalizeDashboardPort(cfg.Dashboard.Port)
 	if cfg.Dashboard.Port == "" {
 		cfg.Dashboard.Port = ":8080"
 	}
+}
+
+func normalizeDashboardPort(port string) string {
+	port = strings.TrimSpace(port)
+	if port == "" {
+		return port
+	}
+	for _, r := range port {
+		if r < '0' || r > '9' {
+			return port
+		}
+	}
+	return ":" + port
 }
