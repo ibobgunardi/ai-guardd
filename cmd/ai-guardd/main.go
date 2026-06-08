@@ -211,27 +211,7 @@ func runCommand(args []string) {
 				continue
 			}
 
-			// Parse
-			var parsedEvt *parser.ParsedEvent
-
-			// Detect Source Type
-			switch msg.Source {
-			case cfg.Input.AuthLogPath:
-				parsedEvt = sshParser.Parse(msg.Content)
-			case cfg.Input.WebLogPath:
-				parsedEvt = httpParser.Parse(msg.Content)
-			case cfg.Input.SyslogPath:
-				parsedEvt = syslogParser.Parse(msg.Content)
-			default:
-				// Fallback or Journald
-				if cfg.Input.EnableJournal && (msg.Source == "sshd" || msg.Source == "ssh") {
-					parsedEvt = sshParser.Parse(msg.Content)
-				} else {
-					// Assume SSH for unknown sources in MVP? Or ignore.
-					// Let's safe ignore to avoid noise.
-					// parsedEvt = sshParser.Parse(msg.Content)
-				}
-			}
+			parsedEvt := parseLogMessage(msg, cfg, sshParser, httpParser, syslogParser)
 
 			if parsedEvt != nil {
 				applyIngestTimestamp(parsedEvt, msg.Timestamp)
@@ -342,6 +322,33 @@ func applyIngestTimestamp(event *parser.ParsedEvent, timestamp int64) {
 		return
 	}
 	event.Timestamp = time.Unix(timestamp, 0)
+}
+
+func parseLogMessage(msg ingest.LogLine, cfg *types.Config, sshParser *parser.SSHParser, httpParser *parser.HTTPParser, syslogParser *parser.SyslogParser) *parser.ParsedEvent {
+	switch msg.Source {
+	case cfg.Input.AuthLogPath:
+		return sshParser.Parse(msg.Content)
+	case cfg.Input.WebLogPath:
+		return httpParser.Parse(msg.Content)
+	case cfg.Input.SyslogPath:
+		return syslogParser.Parse(msg.Content)
+	default:
+		if cfg.Input.EnableJournal {
+			return parseJournalMessage(msg.Source, msg.Content, sshParser, syslogParser)
+		}
+		return nil
+	}
+}
+
+func parseJournalMessage(source, content string, sshParser *parser.SSHParser, syslogParser *parser.SyslogParser) *parser.ParsedEvent {
+	switch strings.ToLower(source) {
+	case "sshd", "ssh":
+		return sshParser.Parse(content)
+	case "sudo", "mysql", "mysqld", "mariadbd":
+		return syslogParser.Parse(content)
+	default:
+		return nil
+	}
 }
 
 func auditCommand(args []string) {

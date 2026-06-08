@@ -1,6 +1,7 @@
 package main
 
 import (
+	"ai-guardd/internal/ingest"
 	"ai-guardd/internal/parser"
 	"ai-guardd/internal/types"
 	"os"
@@ -116,6 +117,80 @@ func TestApplyIngestTimestampIgnoresEmptyTimestamp(t *testing.T) {
 
 	if !event.Timestamp.IsZero() {
 		t.Fatalf("Timestamp = %s, want zero", event.Timestamp)
+	}
+}
+
+func TestParseLogMessageRoutesJournaldSudo(t *testing.T) {
+	cfg := &types.Config{}
+	cfg.Input.EnableJournal = true
+
+	event := parseLogMessage(
+		ingest.LogLine{
+			Source:  "sudo",
+			Content: "sudo[1234]: pam_unix(sudo:auth): authentication failure; logname= uid=1000 euid=0 tty=/dev/pts/0 ruser=deploy rhost= user=deploy",
+		},
+		cfg,
+		parser.NewSSHParser(),
+		parser.NewHTTPParser("web_server"),
+		parser.NewSyslogParser(),
+	)
+
+	if event == nil {
+		t.Fatal("expected journald sudo event to parse")
+	}
+	if event.Source != "syslog_sudo" {
+		t.Fatalf("Source = %q", event.Source)
+	}
+	if event.Type != "priv_escalation_fail" {
+		t.Fatalf("Type = %q", event.Type)
+	}
+}
+
+func TestParseLogMessageRoutesJournaldMySQL(t *testing.T) {
+	cfg := &types.Config{}
+	cfg.Input.EnableJournal = true
+
+	event := parseLogMessage(
+		ingest.LogLine{
+			Source:  "mysqld",
+			Content: "mysqld[1234]: Access denied for user 'root'@'203.0.113.25' (using password: YES)",
+		},
+		cfg,
+		parser.NewSSHParser(),
+		parser.NewHTTPParser("web_server"),
+		parser.NewSyslogParser(),
+	)
+
+	if event == nil {
+		t.Fatal("expected journald MySQL event to parse")
+	}
+	if event.Source != "mysql" {
+		t.Fatalf("Source = %q", event.Source)
+	}
+	if event.Type != "login_failed" {
+		t.Fatalf("Type = %q", event.Type)
+	}
+	if event.IP != "203.0.113.25" {
+		t.Fatalf("IP = %q", event.IP)
+	}
+}
+
+func TestParseLogMessageIgnoresJournalSourcesWhenDisabled(t *testing.T) {
+	cfg := &types.Config{}
+
+	event := parseLogMessage(
+		ingest.LogLine{
+			Source:  "sudo",
+			Content: "sudo[1234]: pam_unix(sudo:auth): authentication failure; user=deploy",
+		},
+		cfg,
+		parser.NewSSHParser(),
+		parser.NewHTTPParser("web_server"),
+		parser.NewSyslogParser(),
+	)
+
+	if event != nil {
+		t.Fatalf("expected journald source to be ignored when disabled, got %#v", event)
 	}
 }
 
