@@ -4,6 +4,7 @@ import (
 	"ai-guardd/internal/parser"
 	"ai-guardd/internal/types"
 	"testing"
+	"time"
 )
 
 func TestEngine_ProcessEvent_NilEvent(t *testing.T) {
@@ -109,6 +110,26 @@ func TestEngine_ProcessEvent_RootLogin(t *testing.T) {
 	}
 	if alert.Summary != "Suspicious Root Login" {
 		t.Errorf("Expected Suspicious Root Login, got %s", alert.Summary)
+	}
+}
+
+func TestEngine_ProcessEvent_RootLoginUsesParsedTimestamp(t *testing.T) {
+	engine := NewEngine(nil)
+	timestamp := time.Date(2026, time.June, 8, 4, 30, 0, 0, time.UTC)
+
+	alert := engine.ProcessEvent(&parser.ParsedEvent{
+		Type:      "login_success",
+		IP:        "1.2.3.4",
+		User:      "root",
+		Source:    "ssh_auth",
+		Timestamp: timestamp,
+	})
+
+	if alert == nil {
+		t.Fatal("Expected root login alert, got nil")
+	}
+	if !alert.Timestamp.Equal(timestamp) {
+		t.Fatalf("Timestamp = %s, want %s", alert.Timestamp, timestamp)
 	}
 }
 
@@ -220,5 +241,37 @@ func TestEngine_ProcessEvent_PrivEscalationFailure(t *testing.T) {
 	}
 	if alert.SuggestedAction == nil || alert.SuggestedAction.Type != "notify_admin" {
 		t.Fatalf("SuggestedAction = %#v", alert.SuggestedAction)
+	}
+}
+
+func TestEngine_ProcessEvent_HTTPThresholdUsesParsedTimestamp(t *testing.T) {
+	engine := NewEngine([]types.DetectionRule{
+		{
+			Name:      "web_scanning",
+			Type:      "threshold",
+			Metric:    "http_404_count",
+			Threshold: 1,
+			Action:    "ban_ip",
+			Duration:  "30m",
+			Risk:      types.RiskMedium,
+			Summary:   "Web Scanning Detected",
+		},
+	})
+	timestamp := time.Date(2026, time.June, 8, 4, 45, 0, 0, time.UTC)
+
+	alert := engine.ProcessEvent(&parser.ParsedEvent{
+		Type:       "http_request",
+		IP:         "198.51.100.20",
+		URL:        "/missing",
+		StatusCode: 404,
+		Source:     "nginx",
+		Timestamp:  timestamp,
+	})
+
+	if alert == nil {
+		t.Fatal("Expected HTTP threshold alert, got nil")
+	}
+	if !alert.Timestamp.Equal(timestamp) {
+		t.Fatalf("Timestamp = %s, want %s", alert.Timestamp, timestamp)
 	}
 }

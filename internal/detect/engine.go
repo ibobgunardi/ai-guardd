@@ -53,7 +53,11 @@ func getDefaultRules() []types.DetectionRule {
 	}
 }
 
-func (e *Engine) checkThresholds(feat *feature.FeatureVector) *types.Event {
+func (e *Engine) checkThresholds(feat *feature.FeatureVector, timestamp time.Time) *types.Event {
+	if timestamp.IsZero() {
+		timestamp = time.Now()
+	}
+
 	// Evaluate all rules against the feature vector
 	for _, rule := range e.rules {
 		if rule.Type != "threshold" {
@@ -90,7 +94,7 @@ func (e *Engine) checkThresholds(feat *feature.FeatureVector) *types.Event {
 
 			return &types.Event{
 				ID:          fmt.Sprintf("evt_%d", time.Now().UnixNano()),
-				Timestamp:   time.Now(),
+				Timestamp:   timestamp,
 				Source:      "rule_engine",
 				Risk:        rule.Risk,
 				Confidence:  0.9,
@@ -115,13 +119,14 @@ func (e *Engine) ProcessEvent(evt *parser.ParsedEvent) *types.Event {
 	if evt == nil {
 		return nil
 	}
+	timestamp := eventTimestamp(evt)
 
 	// 1. Suspicious Success (Immediate Rule)
 	if evt.Type == "login_success" {
 		if evt.User == "root" {
 			return &types.Event{
 				ID:          fmt.Sprintf("evt_%d_root", time.Now().UnixNano()),
-				Timestamp:   time.Now(),
+				Timestamp:   timestamp,
 				Source:      evt.Source,
 				Risk:        types.RiskHigh,
 				Confidence:  1.0,
@@ -148,7 +153,7 @@ func (e *Engine) ProcessEvent(evt *parser.ParsedEvent) *types.Event {
 		// Since we reuse AddFailure, the "FailedLogins" count increases.
 		// The generic rule (Rule 1) will trigger "SSH Brute Force Detected".
 		// We should verify if we want to change the Summary based on Source.
-		event := e.checkThresholds(feat)
+		event := e.checkThresholds(feat, timestamp)
 		if event != nil && evt.Source == "mysql" {
 			event.Summary = "Database Brute Force Detected"
 			event.Explanation = fmt.Sprintf("Host %s attempted %d database logins using %d distinct usernames.", feat.IP, feat.FailedLogins, len(feat.DistinctUsers))
@@ -165,7 +170,7 @@ func (e *Engine) ProcessEvent(evt *parser.ParsedEvent) *types.Event {
 	if evt.Type == "priv_escalation_fail" {
 		return &types.Event{
 			ID:          fmt.Sprintf("evt_%d_priv_escalation", time.Now().UnixNano()),
-			Timestamp:   time.Now(),
+			Timestamp:   timestamp,
 			Source:      evt.Source,
 			Risk:        types.RiskMedium,
 			Confidence:  0.8,
@@ -186,10 +191,17 @@ func (e *Engine) ProcessEvent(evt *parser.ParsedEvent) *types.Event {
 
 	if evt.Type == "http_request" && evt.StatusCode == 404 {
 		feat := e.features.AddHttp404(evt.IP, evt.URL)
-		return e.checkThresholds(feat)
+		return e.checkThresholds(feat, timestamp)
 	}
 
 	return nil
+}
+
+func eventTimestamp(evt *parser.ParsedEvent) time.Time {
+	if !evt.Timestamp.IsZero() {
+		return evt.Timestamp
+	}
+	return time.Now()
 }
 
 // GetState returns current tracked features for persistence
