@@ -24,6 +24,7 @@ type Broker struct {
 	DiscordWebhook string
 	ExecutorSocket string
 	runCommand     commandRunner
+	httpClient     *http.Client
 }
 
 // NewBroker creates a new action broker
@@ -34,6 +35,7 @@ func NewBroker(activeDefense bool, allowlist []string, discordWebhook string, ex
 		DiscordWebhook: discordWebhook,
 		ExecutorSocket: executorSocket,
 		runCommand:     runSystemCommand,
+		httpClient:     &http.Client{Timeout: 5 * time.Second},
 	}
 }
 
@@ -64,7 +66,7 @@ func (b *Broker) Execute(evt *types.Event) error {
 	b.mu.RUnlock()
 
 	if webhook != "" {
-		go b.sendDiscordAlert(evt)
+		go b.sendDiscordAlert(evt, webhook)
 	}
 
 	// 1. Check Allowlist
@@ -120,7 +122,7 @@ func (b *Broker) Execute(evt *types.Event) error {
 }
 
 // sendDiscordAlert sends a JSON payload to Discord
-func (b *Broker) sendDiscordAlert(evt *types.Event) {
+func (b *Broker) sendDiscordAlert(evt *types.Event, webhook string) {
 	type discordMsg struct {
 		Content string `json:"content"`
 	}
@@ -133,11 +135,10 @@ func (b *Broker) sendDiscordAlert(evt *types.Event) {
 	body, _ := json.Marshal(msg)
 
 	// Fire and forget, but with timeout
-	b.mu.RLock()
-	webhook := b.DiscordWebhook
-	b.mu.RUnlock()
-
-	client := http.Client{Timeout: 5 * time.Second}
+	client := b.httpClient
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second}
+	}
 	resp, err := client.Post(webhook, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		log.Printf("Failed to send Discord alert: %v", err)
