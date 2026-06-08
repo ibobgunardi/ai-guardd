@@ -75,7 +75,7 @@ func (a *Accumulator) AddFailure(ip, user string) *FeatureVector {
 
 	feat.LastSeen = time.Now()
 
-	return feat
+	return cloneFeatureVector(feat)
 }
 
 // AddHttp404 records a 404 error
@@ -108,7 +108,7 @@ func (a *Accumulator) AddHttp404(ip, path string) *FeatureVector {
 
 	feat.LastSeen = time.Now()
 
-	return feat
+	return cloneFeatureVector(feat)
 }
 
 // GetFeatures returns the current feature vector for an IP
