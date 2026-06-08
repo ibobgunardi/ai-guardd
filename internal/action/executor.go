@@ -8,7 +8,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -17,13 +16,17 @@ const executorSocketMode os.FileMode = 0o660
 // Executor runs as root and listens for ban requests over a Unix socket
 type Executor struct {
 	SocketPath string
+	runCommand commandRunner
 }
 
 func NewExecutor(socketPath string) *Executor {
 	if socketPath == "" {
 		socketPath = "/run/ai-guardd.sock"
 	}
-	return &Executor{SocketPath: socketPath}
+	return &Executor{
+		SocketPath: socketPath,
+		runCommand: runSystemCommand,
+	}
 }
 
 func (e *Executor) Start() error {
@@ -87,7 +90,7 @@ func (e *Executor) handleConnection(conn net.Conn) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.Fields(line)
-		if len(parts) < 2 {
+		if len(parts) != 2 {
 			continue
 		}
 
@@ -110,17 +113,21 @@ func (e *Executor) handleConnection(conn net.Conn) {
 
 func (e *Executor) banIP(ip string) {
 	log.Printf("[EXECUTOR] Banning IP: %s", ip)
-	// Actually execute iptables
-	cmd := exec.Command("iptables", "-A", "INPUT", "-s", ip, "-j", "DROP")
-	if err := cmd.Run(); err != nil {
+	if err := e.run("iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"); err != nil {
 		log.Printf("[EXECUTOR] Failed to ban %s: %v", ip, err)
 	}
 }
 
 func (e *Executor) unbanIP(ip string) {
 	log.Printf("[EXECUTOR] Unbanning IP: %s", ip)
-	cmd := exec.Command("iptables", "-D", "INPUT", "-s", ip, "-j", "DROP")
-	if err := cmd.Run(); err != nil {
+	if err := e.run("iptables", "-D", "INPUT", "-s", ip, "-j", "DROP"); err != nil {
 		log.Printf("[EXECUTOR] Failed to unban %s: %v", ip, err)
 	}
+}
+
+func (e *Executor) run(name string, args ...string) error {
+	if e.runCommand != nil {
+		return e.runCommand(name, args...)
+	}
+	return runSystemCommand(name, args...)
 }

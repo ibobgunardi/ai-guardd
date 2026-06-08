@@ -1,8 +1,11 @@
 package action
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 )
@@ -42,4 +45,57 @@ func TestExecutorListenRestrictsSocketPermissions(t *testing.T) {
 	if got := info.Mode().Perm(); got != executorSocketMode {
 		t.Fatalf("socket mode = %v, want %v", got, executorSocketMode)
 	}
+}
+
+func TestExecutorRunsValidCommands(t *testing.T) {
+	executor := NewExecutor("")
+	var calls []string
+	executor.runCommand = func(name string, args ...string) error {
+		calls = append(calls, fmt.Sprintf("%s %v", name, args))
+		return nil
+	}
+
+	handleExecutorInput(t, executor, "ban 203.0.113.10\nunban 203.0.113.10\n")
+
+	want := []string{
+		"iptables [-A INPUT -s 203.0.113.10 -j DROP]",
+		"iptables [-D INPUT -s 203.0.113.10 -j DROP]",
+	}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("calls = %#v, want %#v", calls, want)
+	}
+}
+
+func TestExecutorRejectsMalformedCommands(t *testing.T) {
+	executor := NewExecutor("")
+	called := false
+	executor.runCommand = func(name string, args ...string) error {
+		called = true
+		return nil
+	}
+
+	handleExecutorInput(t, executor, "ban 203.0.113.10 extra\nunban\nban not-an-ip\n")
+
+	if called {
+		t.Fatal("malformed executor commands should not run iptables")
+	}
+}
+
+func handleExecutorInput(t *testing.T, executor *Executor, input string) {
+	t.Helper()
+
+	serverConn, clientConn := net.Pipe()
+	done := make(chan struct{})
+	go func() {
+		executor.handleConnection(serverConn)
+		close(done)
+	}()
+
+	if _, err := clientConn.Write([]byte(input)); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+	if err := clientConn.Close(); err != nil {
+		t.Fatalf("close client: %v", err)
+	}
+	<-done
 }
