@@ -226,13 +226,48 @@ func TestSendDiscordAlertUsesProvidedWebhook(t *testing.T) {
 	}
 	broker.UpdateConfig(false, nil, "https://example.invalid/new", "")
 
-	broker.sendDiscordAlert(banEvent("203.0.113.50"), "https://example.invalid/snapshot")
+	broker.sendDiscordAlert(newDiscordAlert(banEvent("203.0.113.50")), "https://example.invalid/snapshot")
 
 	if gotURL != "https://example.invalid/snapshot" {
 		t.Fatalf("webhook URL = %q", gotURL)
 	}
 	if !strings.Contains(gotContent, "test alert") {
 		t.Fatalf("content = %q", gotContent)
+	}
+}
+
+func TestNewDiscordAlertCopiesEventFields(t *testing.T) {
+	event := banEvent("203.0.113.52")
+	event.Risk = types.RiskHigh
+	event.Source = "ssh"
+	event.Explanation = "initial explanation"
+
+	alert := newDiscordAlert(event)
+
+	event.Summary = "changed alert"
+	event.Risk = types.RiskLow
+	event.Source = "http"
+	event.Explanation = "changed explanation"
+	event.SuggestedAction.Type = "notify_admin"
+	event.SuggestedAction.Target = "admin"
+
+	if alert.Summary != "test alert" {
+		t.Fatalf("summary = %q", alert.Summary)
+	}
+	if alert.Risk != types.RiskHigh {
+		t.Fatalf("risk = %q", alert.Risk)
+	}
+	if alert.Source != "ssh" {
+		t.Fatalf("source = %q", alert.Source)
+	}
+	if alert.Explanation != "initial explanation" {
+		t.Fatalf("explanation = %q", alert.Explanation)
+	}
+	if alert.ActionType != "ban_ip" {
+		t.Fatalf("action type = %q", alert.ActionType)
+	}
+	if alert.ActionTarget != "203.0.113.52" {
+		t.Fatalf("action target = %q", alert.ActionTarget)
 	}
 }
 
@@ -263,7 +298,7 @@ func TestSendDiscordAlertBuildsJSONPayload(t *testing.T) {
 		}),
 	}
 
-	broker.sendDiscordAlert(banEvent("203.0.113.51"), "https://example.invalid/webhook")
+	broker.sendDiscordAlert(newDiscordAlert(banEvent("203.0.113.51")), "https://example.invalid/webhook")
 }
 
 func banEvent(target string) *types.Event {

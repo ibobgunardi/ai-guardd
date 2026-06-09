@@ -16,6 +16,15 @@ import (
 
 type commandRunner func(name string, args ...string) error
 
+type discordAlert struct {
+	Summary      string
+	Risk         types.RiskLevel
+	Source       string
+	ActionType   string
+	ActionTarget string
+	Explanation  string
+}
+
 // Broker handles the execution of suggested actions
 type Broker struct {
 	mu             sync.RWMutex
@@ -66,7 +75,8 @@ func (b *Broker) Execute(evt *types.Event) error {
 	b.mu.RUnlock()
 
 	if webhook != "" {
-		go b.sendDiscordAlert(evt, webhook)
+		alert := newDiscordAlert(evt)
+		go b.sendDiscordAlert(alert, webhook)
 	}
 
 	// 1. Check Allowlist
@@ -121,15 +131,33 @@ func (b *Broker) Execute(evt *types.Event) error {
 	return b.executeCommand(act)
 }
 
+func newDiscordAlert(evt *types.Event) discordAlert {
+	if evt == nil {
+		return discordAlert{}
+	}
+
+	alert := discordAlert{
+		Summary:     evt.Summary,
+		Risk:        evt.Risk,
+		Source:      evt.Source,
+		Explanation: evt.Explanation,
+	}
+	if evt.SuggestedAction != nil {
+		alert.ActionType = evt.SuggestedAction.Type
+		alert.ActionTarget = evt.SuggestedAction.Target
+	}
+	return alert
+}
+
 // sendDiscordAlert sends a JSON payload to Discord
-func (b *Broker) sendDiscordAlert(evt *types.Event, webhook string) {
+func (b *Broker) sendDiscordAlert(alert discordAlert, webhook string) {
 	type discordMsg struct {
 		Content string `json:"content"`
 	}
 
 	msg := discordMsg{
 		Content: fmt.Sprintf("**[%s] AI-Guardd Alert**\n**Summary**: %s\n**Risk**: %s\n**Source**: %s\n**Action**: %s %s\n\n`%s`",
-			time.Now().Format("15:04:05"), evt.Summary, evt.Risk, evt.Source, evt.SuggestedAction.Type, evt.SuggestedAction.Target, evt.Explanation),
+			time.Now().Format("15:04:05"), alert.Summary, alert.Risk, alert.Source, alert.ActionType, alert.ActionTarget, alert.Explanation),
 	}
 
 	body, _ := json.Marshal(msg)
